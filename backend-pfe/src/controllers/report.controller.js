@@ -4,6 +4,28 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const { analyzeImageWithGemini } = require('../services/aiService');
+const axios = require('axios'); // For Nominatim requests if fetch is not available
+
+async function fetchAddressFromCoords(lat, lon) {
+    try {
+        // We use axios but fallback to internal fetch if preferred. Axios is standard.
+        const response = await axios.get(`https://nominatim.openstreetmap.org/reverse`, {
+            params: { lat, lon, format: 'json', addressdetails: 1 },
+            headers: { 'User-Agent': 'SIGRoutier/1.0' }
+        });
+        const data = response.data;
+        if (data && data.address) {
+            const addr = data.address;
+            const street = addr.road || addr.pedestrian || addr.footway || addr.residential || '';
+            const city = addr.city || addr.town || addr.village || addr.county || '';
+            return [street, city, addr.country].filter(Boolean).join(', ');
+        }
+        return 'Adresse non disponible';
+    } catch (err) {
+        console.error('[Nominatim] Erreur géocodage inverse:', err.message);
+        return 'Adresse non disponible';
+    }
+}
 
 console.log(" [SYSTEM] Contrôleur des signalements chargé.");
 
@@ -46,11 +68,18 @@ exports.createReport = (req, res) => {
                 return res.status(400).json({ message: "Au moins une image est requise." });
             }
             if (!longitude || !latitude) {
+                // Nettoyage en cas d'erreur de validation
+                req.files.forEach(f => { try { fs.unlinkSync(f.path); } catch (e) { console.error("Erreur nettoyage fichier: ", e.message); } });
                 return res.status(400).json({ message: "Les coordonnées GPS (longitude, latitude) sont requises." });
             }
 
             const lon = parseFloat(longitude);
             const lat = parseFloat(latitude);
+
+            if (isNaN(lon) || isNaN(lat)) {
+                req.files.forEach(f => { try { fs.unlinkSync(f.path); } catch (e) { console.error("Erreur nettoyage fichier: ", e.message); } });
+                return res.status(400).json({ message: "Format de coordonnées GPS invalide." });
+            }
 
             // ── Étape 2 : Détecter la source (anonyme, citizen, ou agent) ──
             const source = req.user?.role === 'agent' ? 'agent' : 'citizen';
@@ -113,6 +142,13 @@ exports.createReport = (req, res) => {
             // ── Étape 5 : SAUVEGARDE — avec sectorId et assignedCity ──
             const imagePaths = req.files.map(f => `/uploads/${f.filename}`);
 
+            // ── Résolution de l'adresse textuelle via OSM ──
+            let finalAddress = address;
+            if (!finalAddress || source === 'citizen') {
+                console.log(`[GEOCODING] Récupération de l'adresse pour [${lat}, ${lon}]...`);
+                finalAddress = await fetchAddressFromCoords(lat, lon);
+            }
+
             const newReport = await Report.create({
                 images: imagePaths,
                 location: {
@@ -123,7 +159,7 @@ exports.createReport = (req, res) => {
                 assignedCity: sector.city || sector.name,
                 sectorId: sector._id,
                 description: description || '',
-                address: address || '',
+                address: finalAddress,
                 status,
                 source,
                 owner: ownerId,
@@ -157,8 +193,8 @@ exports.createReport = (req, res) => {
 exports.getWaitingReports = async (req, res) => {
     try {
         const reports = await Report.find({
-            status: "accepte",
-            ownerRole: "citizen",
+            status: "PENDING_EXPERT",
+            source: "citizen",
             sentToSystem: false
         }).sort({ createdAt: -1 });
 
@@ -172,8 +208,8 @@ exports.getWaitingReports = async (req, res) => {
 exports.confirmBatch = async (req, res) => {
     try {
         const result = await Report.updateMany(
-            { status: "accepte", ownerRole: "citizen", sentToSystem: false },
-            { $set: { sentToSystem: true, status: "PENDING_EXPERT" } }
+            { status: "PENDING_EXPERT", source: "citizen", sentToSystem: false },
+            { $set: { sentToSystem: true } }
         );
 
         res.status(200).json({
@@ -209,13 +245,26 @@ exports.getMyMissions = async (req, res) => {
 exports.updateReportStatus = async (req, res) => {
     try {
         const { status, agentObservations } = req.body;
-        const report = await Report.findByIdAndUpdate(
-            req.params.id,
-            { status, description: agentObservations ? `${report.description}\n\nObs Agent: ${agentObservations}` : report.description },
-            { new: true }
-        );
-        res.status(200).json(report);
+        
+        const report = await Report.findById(req.params.id);
+        if (!report) {
+            return res.status(404).json({ message: "Rapport introuvable." });
+        }
+
+        if (status) {
+            report.status = status;
+        }
+
+        if (agentObservations) {
+            report.description = report.description 
+                ? `${report.description}\n\nObs Agent: ${agentObservations}` 
+                : `Obs Agent: ${agentObservations}`;
+        }
+
+        const updatedReport = await report.save();
+        res.status(200).json(updatedReport);
     } catch (error) {
-        res.status(500).json({ message: "Erreur mise à jour." });
+        console.error('[updateReportStatus] Erreur :', error);
+        res.status(500).json({ message: "Erreur mise à jour du statut." });
     }
 };
