@@ -82,6 +82,9 @@ exports.sendApprovalEmail = async (user) => {
 exports.sendInspectionOrderEmail = async (agent, order) => {
   const priorityLabel = order.priority === 'haute' ? '🔴 HAUTE PRIORITÉ' : '🟡 Priorité Normale';
   const orderNum = order._id.toString().slice(-6).toUpperCase();
+  const sectorName = order.sectorId?.name || '';
+  const sectorCity = order.sectorId?.city || '';
+  const dueDateStr = order.dueDate ? new Date(order.dueDate).toLocaleDateString('fr-FR') : '';
 
   const htmlContent = `
     <div style="font-family: 'Inter', Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #1e293b;">
@@ -93,39 +96,39 @@ exports.sendInspectionOrderEmail = async (agent, order) => {
 
       <div style="background: #ffffff; padding: 32px; border: 1px solid #e2e8f0; border-top: none;">
         <p style="color: #475569; font-size: 15px; margin: 0 0 24px;">Bonjour <strong>${agent.firstName || agent.name}</strong>,</p>
-        <p style="color: #475569; font-size: 15px; margin: 0 0 28px;">Un nouvel ordre d'inspection vous a été assigné. Veuillez en prendre connaissance et procéder dès que possible.</p>
+        <p style="color: #475569; font-size: 15px; margin: 0 0 28px;">Un nouvel ordre d'inspection cartographique vous a été assigné. Veuillez en prendre connaissance et procéder à la patrouille numérique dès que possible.</p>
 
         <div style="background: #f8fafc; border-radius: 16px; padding: 24px; margin-bottom: 24px; border: 1px solid #e2e8f0;">
-          <h3 style="color: #94a3b8; font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.2em; margin: 0 0 20px;">📍 Localisation de la Mission</h3>
+          <h3 style="color: #94a3b8; font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.2em; margin: 0 0 20px;">📍 Détails de la Mission</h3>
           <table style="width: 100%; border-collapse: collapse;">
+            ${sectorName ? `
             <tr>
-              <td style="padding: 8px 0; color: #94a3b8; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; width: 130px;">Gouvernorat</td>
-              <td style="padding: 8px 0; color: #1e293b; font-size: 15px; font-weight: 800;">${order.gouvernorat}</td>
+              <td style="padding: 8px 0; color: #94a3b8; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; width: 140px;">Secteur / Zone</td>
+              <td style="padding: 8px 0; color: #1e293b; font-size: 15px; font-weight: 800;">${sectorName} ${sectorCity ? `— ${sectorCity}` : ''}</td>
             </tr>
+            ` : ''}
+            ${dueDateStr ? `
             <tr>
-              <td style="padding: 8px 0; color: #94a3b8; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em;">Délégation</td>
-              <td style="padding: 8px 0; color: #1e293b; font-size: 15px; font-weight: 800;">${order.delegation}</td>
+              <td style="padding: 8px 0; color: #94a3b8; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em;">Date Limite</td>
+              <td style="padding: 8px 0; color: #ef4444; font-size: 15px; font-weight: 800;">${dueDateStr}</td>
             </tr>
-            <tr>
-              <td style="padding: 8px 0; color: #94a3b8; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em;">Zone</td>
-              <td style="padding: 8px 0; color: #4f46e5; font-size: 15px; font-weight: 800;">${order.zone}</td>
-            </tr>
+            ` : ''}
           </table>
         </div>
 
         ${order.instructions ? `
         <div style="background: #eef2ff; border-radius: 16px; padding: 20px; margin-bottom: 24px; border-left: 4px solid #4f46e5;">
-          <p style="color: #4f46e5; font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.15em; margin: 0 0 8px;">Instructions Spéciales</p>
+          <p style="color: #4f46e5; font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.15em; margin: 0 0 8px;">Instructions de l'Administration</p>
           <p style="color: #1e293b; font-size: 14px; font-weight: 600; margin: 0; line-height: 1.6;">${order.instructions}</p>
         </div>` : ''}
 
         <div style="margin-top: 32px; text-align: center;">
-          <a href="http://localhost:3000/inspections" style="background: #4f46e5; color: white; padding: 14px 32px; text-decoration: none; border-radius: 12px; font-weight: 800; font-size: 14px; display: inline-block;">Accéder à mon espace Agent</a>
+          <a href="http://localhost:3000/agent" style="background: #4f46e5; color: white; padding: 14px 32px; text-decoration: none; border-radius: 12px; font-weight: 800; font-size: 14px; display: inline-block;">Démarrer ma Patrouille</a>
         </div>
       </div>
 
       <div style="background: #f8fafc; padding: 20px 32px; border-radius: 0 0 20px 20px; border: 1px solid #e2e8f0; border-top: none; text-align: center;">
-        <p style="color: #94a3b8; font-size: 12px; margin: 0;">SIG Routier — Système de Gestion des Inspections Routières</p>
+        <p style="color: #94a3b8; font-size: 12px; margin: 0;">SIG Routier — Système Informatique Géographique</p>
       </div>
     </div>
   `;
@@ -133,7 +136,30 @@ exports.sendInspectionOrderEmail = async (agent, order) => {
   await transporter.sendMail({
     from: process.env.EMAIL_USER,
     to: agent.email,
-    subject: `[ORDRE D'INSPECTION #${orderNum}] ${order.gouvernorat} — ${order.delegation}`,
+    subject: `[MISSION SIG #${orderNum}] ${sectorCity ? sectorCity + ' — ' : ''}${sectorName ? 'Secteur assigné' : 'Nouvelle Patrouille'}`,
+    html: htmlContent
+  });
+};
+
+exports.sendRejectionEmail = async (to, name) => {
+  const htmlContent = `
+    <div style="font-family: 'Inter', sans-serif; color: #1e3a5f; line-height: 1.6;">
+      <h2 style="color: #ef4444;">Mise à jour concernant votre inscription</h2>
+      <p>Bonjour <strong>${name}</strong>,</p>
+      <p>Nous vous remercions pour l'intérêt que vous portez au <strong>SIG Routier</strong>.</p>
+      <p>Après examen de votre profil par l'administration, nous sommes au regret de vous informer que nous ne pouvons pas donner une suite favorable à votre compte Agent pour le moment.</p>
+      <p>Votre demande a été supprimée. Vous pourrez soumettre une nouvelle candidature ultérieurement si la situation évolue.</p>
+      <p style="margin-top: 40px; font-size: 0.8rem; color: #6b7280;">
+        Cordialement,<br>
+        L'équipe d'administration SIG Routier
+      </p>
+    </div>
+  `;
+
+  await transporter.sendMail({
+    from: process.env.EMAIL_USER,
+    to,
+    subject: "Candidature Agent - SIG Routier",
     html: htmlContent
   });
 };

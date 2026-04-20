@@ -20,7 +20,8 @@ const ExpertDashboard = () => {
     const fetchReports = async () => {
         try {
             const token = localStorage.getItem('token');
-            const res = await axios.get('/api/reports?status=SOUMIS,VALIDÉ_IA,REJETÉ', {
+            // Récupère PENDING_EXPERT et VALIDATED uniquement (en attente d'affectation expert)
+            const res = await axios.get('/api/reports?status=PENDING_EXPERT', {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setReports(res.data);
@@ -74,11 +75,11 @@ const ExpertDashboard = () => {
             const token = localStorage.getItem('token');
             const headers = { Authorization: `Bearer ${token}` };
 
-            // 1. Valider le rapport (Expert)
+            // 1. Valider le rapport (Expert) → statut officiel VALIDATED
             await axios.patch(`/api/reports/${selectedReport._id}/validate`, {
                 type: editType,
                 gravity: editGravity,
-                status: 'VALIDÉ_EXPERT'
+                status: 'VALIDATED'
             }, { headers });
 
             // 2. Créer la mission
@@ -163,15 +164,22 @@ const ExpertDashboard = () => {
                                     alignItems: 'center',
                                     gap: '5px',
                                     backgroundColor:
-                                        report.status === 'VALIDÉ_IA' ? '#dcfce7' :
-                                            report.status === 'REJETÉ' ? '#fee2e2' : '#fef9c3',
+                                        report.status === 'PENDING_EXPERT' ? '#fef9c3' :
+                                        report.status === 'VALIDATED'       ? '#dcfce7' :
+                                        report.status === 'REJECTED'        ? '#fee2e2' :
+                                        report.status === 'IN_PROGRESS'     ? '#dbeafe' : '#f3f4f6',
                                     color:
-                                        report.status === 'VALIDÉ_IA' ? '#166534' :
-                                            report.status === 'REJETÉ' ? '#991b1b' : '#854d0e'
+                                        report.status === 'PENDING_EXPERT' ? '#854d0e' :
+                                        report.status === 'VALIDATED'       ? '#166534' :
+                                        report.status === 'REJECTED'        ? '#991b1b' :
+                                        report.status === 'IN_PROGRESS'     ? '#1e40af' : '#374151'
                                 }}>
                                     <ShieldAlert size={14} />
-                                    {report.status === 'VALIDÉ_IA' ? 'APPROUVÉ IA' :
-                                        report.status === 'REJETÉ' ? 'REJETÉ IA' : 'ATTENTE IA'}
+                                    {report.status === 'PENDING_EXPERT' ? 'EN ATTENTE EXPERT' :
+                                     report.status === 'VALIDATED'       ? 'VALIDÉ' :
+                                     report.status === 'REJECTED'        ? 'REJETÉ (IA)' :
+                                     report.status === 'IN_PROGRESS'     ? 'EN COURS' :
+                                     report.status === 'COMPLETED'       ? 'TERMINÉ' : report.status}
                                 </span>
                                 <span style={{ padding: '4px 10px', borderRadius: '4px', fontSize: '0.85rem', backgroundColor: 'var(--bg-color)', border: '1px solid var(--border-color)' }}>
                                     Zone: {report.zone || '?'}
@@ -330,8 +338,8 @@ const ExpertDashboard = () => {
                                                 fontSize: '0.75rem',
                                                 padding: '4px 10px',
                                                 borderRadius: '20px',
-                                                backgroundColor: mission.status === 'TERMINÉE' ? '#dcfce7' : mission.status === 'RÉSOLU' ? '#dcfce7' : '#fef9c3',
-                                                color: mission.status === 'TERMINÉE' ? '#166534' : mission.status === 'RÉSOLU' ? '#166534' : '#854d0e',
+                                                backgroundColor: mission.status === 'COMPLETED' ? '#dcfce7' : mission.status === 'IN_PROGRESS' ? '#dbeafe' : '#fef9c3',
+                                                color: mission.status === 'COMPLETED' ? '#166534' : mission.status === 'IN_PROGRESS' ? '#1e40af' : '#854d0e',
                                                 fontWeight: '600'
                                             }}>
                                                 {mission.status}

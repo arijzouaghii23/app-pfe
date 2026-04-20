@@ -11,7 +11,9 @@ const {
   getAgents,
   getPendingAgents,
   approveAgent,
-  getStatus
+  rejectAgent,
+  getStatus,
+  updateProfilePassword
 } = require("../controllers/auth.controller");
 const { protect, isAdmin } = require("../middlewares/auth.middleware");
 
@@ -24,12 +26,14 @@ router.post("/reset-password/:token", resetPassword);
 
 // Route protégée
 router.get("/me", protect, getMe);
-router.patch("/change-password", protect, changePassword);
+router.patch("/change-password", protect, changePassword); // Admin force login
+router.patch("/profile/password", protect, updateProfilePassword); // Profil user connecté
 router.get("/agents", protect, getAgents);
 router.get("/status", protect, getStatus);
 
 // Routes Admin
 router.get("/pending-agents", protect, isAdmin, getPendingAgents);
 router.put("/approve-agent/:id", protect, isAdmin, approveAgent);
+router.delete("/reject-agent/:id", protect, isAdmin, rejectAgent);
 
 module.exports = router;

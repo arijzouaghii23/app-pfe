@@ -3,7 +3,7 @@ const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const { sendVerificationEmail, sendResetPasswordEmail } = require("../services/mailer");
-
+const AuthService = require("../services/authService");
 // REGISTER
 exports.register = async (req, res) => {
   try {
@@ -13,7 +13,7 @@ exports.register = async (req, res) => {
     if (userExist) return res.status(400).json({ message: "Email déjà utilisé" });
 
     const token = crypto.randomBytes(32).toString("hex");
-    const userRole = role || "citizen";
+    const userRole = role || "agent";
 
     const user = await User.create({
       name,
@@ -98,8 +98,7 @@ exports.changePassword = async (req, res) => {
 
     // Mise à jour des informations de profil
     if (newPassword) {
-      user.password = newPassword;
-      user.mustChangePassword = false;
+      await AuthService.updatePassword(user, newPassword);
     }
     
     if (phone) user.phone = phone;
@@ -160,9 +159,7 @@ exports.resetPassword = async (req, res) => {
 
     if (!user) return res.status(400).json({ message: "Le lien est invalide ou a expiré" });
 
-    user.password = newPassword;
-    user.resetPasswordToken = undefined;
-    user.resetPasswordExpires = undefined;
+    await AuthService.updatePassword(user, newPassword);
 
     await user.save();
 
@@ -196,16 +193,19 @@ exports.getPendingAgents = async (req, res) => {
 exports.approveAgent = async (req, res) => {
   try {
     const { id } = req.params;
-    const { assignedCity } = req.body;
 
     const user = await User.findById(id);
     if (!user) return res.status(404).json({ message: "Agent introuvable" });
     if (user.role !== 'agent') return res.status(400).json({ message: "Cet utilisateur n'est pas un agent." });
 
+    // Auto-détection de la ville opérationnelle via le premier secteur disponible
+    // On lit le champ `city` du secteur (ex: "Lyon"), PAS son `name` (ex: "Lyon 9e Arrondissement")
+    const Sector = require("../models/Sector");
+    const firstSector = await Sector.findOne({}).select('city');
+    const operationalCity = firstSector?.city || 'Non définie';
+
     user.status = "active";
-    if (assignedCity) {
-      user.assignedCity = assignedCity;
-    }
+    user.assignedCity = operationalCity;
 
     await user.save();
 
@@ -218,9 +218,34 @@ exports.approveAgent = async (req, res) => {
     }
 
     res.json({
-      message: `Agent ${user.firstName || user.name} approuvé et affecté à la ville "${user.assignedCity || 'non définie'}".`,
+      message: `Agent ${user.firstName || user.name} approuvé et affecté à la ville "${user.assignedCity}".`,
       user: { _id: user._id, name: user.name, firstName: user.firstName, status: user.status, assignedCity: user.assignedCity }
     });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Rejeter un agent (Pour l'admin)
+exports.rejectAgent = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const user = await User.findById(id);
+    if (!user) return res.status(404).json({ message: "Agent introuvable" });
+    if (user.role !== 'agent') return res.status(400).json({ message: "Cet utilisateur n'est pas un agent." });
+
+    // Envoi de l'email de rejet
+    try {
+      const { sendRejectionEmail } = require("../services/mailer");
+      await sendRejectionEmail(user.email, user.firstName || user.name);
+    } catch (mailErr) {
+      console.warn('[MAIL] Erreur envoi email rejet :', mailErr.message);
+    }
+
+    await User.findByIdAndDelete(id);
+
+    res.json({ message: `Agent rejeté et supprimé avec succès.` });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -233,6 +258,35 @@ exports.getStatus = async (req, res) => {
     const user = await User.findById(req.user.id).select('status role');
     if (!user) return res.status(404).json({ message: "Utilisateur introuvable" });
     res.json({ status: user.status, role: user.role });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// MISE À JOUR DU MOT DE PASSE (Depuis le profil utilisateur connecté)
+exports.updateProfilePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ message: "L'ancien et le nouveau mot de passe sont requis." });
+    }
+
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ message: "Utilisateur introuvable" });
+
+    try {
+      await AuthService.updatePassword(user, newPassword, currentPassword);
+    } catch (err) {
+      if (err.message === 'CURRENT_PASSWORD_INVALID') {
+        return res.status(400).json({ message: "Mot de passe actuel incorrect." });
+      }
+      throw err;
+    }
+
+    await user.save();
+
+    res.json({ message: "Mot de passe mis à jour avec succès." });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

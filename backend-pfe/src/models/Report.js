@@ -32,7 +32,7 @@ const reportSchema = new mongoose.Schema({
   status: {
     type: String,
     default: 'PENDING_EXPERT',
-    enum: ['PENDING_EXPERT', 'VALIDATED', 'EN_COURS', 'COMPLETED', 'refuse']
+    enum: ['PENDING_EXPERT', 'VALIDATED', 'IN_PROGRESS', 'COMPLETED', 'REJECTED']
   },
   // owner est optionnel pour supporter les rapports anonymes
   owner: {
@@ -56,10 +56,6 @@ const reportSchema = new mongoose.Schema({
       scoreConfiance: Number
     },
     default: null
-  },
-  sentToSystem: {
-    type: Boolean,
-    default: false
   },
   address: {
     type: String,

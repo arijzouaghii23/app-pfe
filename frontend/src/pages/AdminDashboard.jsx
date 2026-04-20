@@ -219,12 +219,30 @@ function TeamTab({ token }) {
     }
   }, [view, fetchPendingAgents, fetchSectors]);
 
-  const handleApprove = async (id, zone) => {
+  const handleApprove = async (id) => {
     try {
-      await approveAgent(id, zone, token);
+      // Approuver l'agent — le backend assigne automatiquement la ville via son propre secteur
+      await approveAgent(id, null, token);
       setAgents(prev => prev.filter(a => a._id !== id));
     } catch (err) {
       alert('Erreur : ' + (err.response?.data?.message || err.message));
+    }
+  };
+
+  const handleReject = async (id) => {
+    if (!window.confirm("Êtes-vous sûr de vouloir rejeter cette candidature ? Le compte sera définitivement supprimé.")) return;
+    try {
+      const res = await fetch(`http://localhost:5000/api/auth/reject-agent/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!res.ok) {
+         const data = await res.json();
+         throw new Error(data.message || 'Erreur serveur');
+      }
+      setAgents(prev => prev.filter(a => a._id !== id));
+    } catch (err) {
+      alert('Erreur : ' + err.message);
     }
   };
 
@@ -285,7 +303,7 @@ function TeamTab({ token }) {
                 <tr className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">
                   <th className="text-left px-6 py-3">Agent</th>
                   <th className="text-left px-6 py-3">Statut</th>
-                  <th className="text-left px-6 py-3">Zone</th>
+                  <th className="text-left px-6 py-3">ville</th>
                   <th className="text-right px-6 py-3">Actions</th>
                 </tr>
               </thead>
@@ -295,7 +313,7 @@ function TeamTab({ token }) {
                     <RefreshCw size={24} className="animate-spin text-slate-300 mx-auto" />
                   </td></tr>
                 ) : filtered.length > 0 ? (
-                  filtered.map(agent => <AgentRow key={agent._id} agent={agent} onApprove={handleApprove} sectors={sectors} />)
+                  filtered.map(agent => <AgentRow key={agent._id} agent={agent} onApprove={handleApprove} onReject={handleReject} sectors={sectors} />)
                 ) : (
                   <tr><td colSpan={4} className="text-center py-12 text-slate-400 text-sm font-semibold">
                     Aucun agent en attente.

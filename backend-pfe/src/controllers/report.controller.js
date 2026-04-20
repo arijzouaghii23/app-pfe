@@ -126,7 +126,7 @@ exports.createReport = (req, res) => {
                         status = 'PENDING_EXPERT';
                         console.log(`[STP] Validé par Gemini (score: ${aiResult.scoreConfiance}). Route directe → Expert.`);
                     } else {
-                        status = 'refuse';
+                        status = 'REJECTED';
                         console.log(`[STP] Refusé par Gemini (score: ${aiResult?.scoreConfiance ?? 'N/A'}). Signalement écarté.`);
                     }
                 } catch (aiError) {
@@ -163,8 +163,7 @@ exports.createReport = (req, res) => {
                 status,
                 source,
                 owner: ownerId,
-                aiResult,
-                sentToSystem: status === 'PENDING_EXPERT'
+                aiResult
             });
 
             console.log(`[SUCCESS] Rapport créé. ID: ${newReport._id} | Statut: ${status} | Secteur: ${sector.name}`);
@@ -189,37 +188,6 @@ exports.createReport = (req, res) => {
 };
 
 
-// Récupérer les rapports en attente de propulsion (ADMIN SEULEMENT)
-exports.getWaitingReports = async (req, res) => {
-    try {
-        const reports = await Report.find({
-            status: "PENDING_EXPERT",
-            source: "citizen",
-            sentToSystem: false
-        }).sort({ createdAt: -1 });
-
-        res.status(200).json(reports);
-    } catch (error) {
-        res.status(500).json({ message: "Erreur lors de la récupération de la file d'attente." });
-    }
-};
-
-// Propulsion massive vers le système (ADMIN SEULEMENT)
-exports.confirmBatch = async (req, res) => {
-    try {
-        const result = await Report.updateMany(
-            { status: "PENDING_EXPERT", source: "citizen", sentToSystem: false },
-            { $set: { sentToSystem: true } }
-        );
-
-        res.status(200).json({
-            message: "Propulsion réussie !",
-            modifiedCount: result.modifiedCount
-        });
-    } catch (error) {
-        res.status(500).json({ message: "Erreur lors de la propulsion des données." });
-    }
-};
 
 // Récupérer les inspections de l'agent connecté
 exports.getMyReports = async (req, res) => {
@@ -266,5 +234,25 @@ exports.updateReportStatus = async (req, res) => {
     } catch (error) {
         console.error('[updateReportStatus] Erreur :', error);
         res.status(500).json({ message: "Erreur mise à jour du statut." });
+    }
+};
+
+// Lister les rapports avec filtres (sectorId, source, owner) — pour historique patrouille
+exports.getReports = async (req, res) => {
+    try {
+        const { sectorId, source, owner } = req.query;
+        const filter = {};
+        if (sectorId) filter.sectorId = sectorId;
+        if (source)   filter.source   = source;
+        if (owner)    filter.owner    = owner;
+
+        const reports = await Report.find(filter)
+            .sort({ createdAt: -1 })
+            .populate('sectorId', 'name city');
+
+        res.status(200).json(reports);
+    } catch (error) {
+        console.error('[getReports] Erreur :', error);
+        res.status(500).json({ message: "Erreur récupération des rapports." });
     }
 };

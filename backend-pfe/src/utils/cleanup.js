@@ -30,7 +30,7 @@ const cleanupReports = async () => {
 
         // Trouver les signalements refusés et datant de plus de 7 jours
         const oldRejectedReports = await Report.find({
-            status: 'refuse',
+            status: 'REJECTED',
             updatedAt: { $lt: sevenDaysAgo }
         });
 

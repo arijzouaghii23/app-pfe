@@ -11,8 +11,7 @@ function Register() {
     cin: '', 
     email: '', 
     password: '', 
-    role: 'citizen', 
-    zone: 'Nord' 
+    role: 'agent'
   });
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -23,18 +22,7 @@ function Register() {
     setError('');
     setMessage('');
     try {
-      // Pour un citoyen, on n'envoie pas de zone
-      const dataToSubmit = { ...formData };
-      if (formData.role === 'citizen') {
-        const { zone, ...rest } = dataToSubmit;
-        // On peut soit supprimer soit laisser la zone vide, le backend s'en occupe
-        // Mais restons propres
-        dataToSubmit.zone = []; 
-      } else if (formData.role === 'agent') {
-        dataToSubmit.zone = [formData.zone]; // Le backend attend un tableau
-      }
-      
-      const res = await registerPublic(dataToSubmit);
+      const res = await registerPublic(formData);
       setMessage(res.data.message || 'Inscription réussie. Veuillez vérifier votre email.');
       setTimeout(() => navigate('/login'), 3000);
     } catch (err) {
@@ -154,50 +142,6 @@ function Register() {
             </div>
           </div>
 
-          <div className="form-group">
-            <label>Je m'inscris en tant que :</label>
-            <div style={{ display: 'flex', gap: '20px', marginTop: '10px', marginBottom: '10px' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-                <input
-                  type="radio"
-                  name="role"
-                  value="citizen"
-                  checked={formData.role === 'citizen'}
-                  onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                />
-                Citoyen
-              </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-                <input
-                  type="radio"
-                  name="role"
-                  value="agent"
-                  checked={formData.role === 'agent'}
-                  onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                />
-                Agent
-              </label>
-            </div>
-          </div>
-
-          {formData.role === 'agent' && (
-            <div className="form-group">
-              <label>Zone d'intervention</label>
-              <select
-                className="input-field"
-                value={formData.zone}
-                onChange={(e) => setFormData({ ...formData, zone: e.target.value })}
-                required
-                style={{ appearance: 'auto' }}
-              >
-                <option value="Nord">Nord (Tunis, Bizerte...)</option>
-                <option value="Sud">Sud (Tataouine, Medenine...)</option>
-                <option value="Est">Est (Sousse, Sfax...)</option>
-                <option value="Ouest">Ouest (Kasserine, Kef...)</option>
-                <option value="Centre">Centre (Kairouan...)</option>
-              </select>
-            </div>
-          )}
 
           <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '10px' }}>
             S'inscrire

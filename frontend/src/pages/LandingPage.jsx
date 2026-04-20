@@ -111,7 +111,7 @@ function ReportModal({ latlng, onClose, onSuccess }) {
       } else if (!res.ok) {
         throw new Error(data.message || 'Erreur serveur');
       } else {
-        onSuccess(data.report?.status === 'refuse' ? 'refused' : 'success', data.message);
+        onSuccess(data.report?.status === 'REJECTED' ? 'refused' : 'success', data.message);
       }
     } catch (err) {
       onSuccess('error', err.message);

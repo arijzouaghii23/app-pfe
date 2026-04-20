@@ -61,8 +61,7 @@ const WaitPage = () => {
         
         <p className="auth-subtitle">
           Ravi de vous revoir, <span style={{ fontWeight: 'bold', color: 'var(--primary)' }}>{user.firstName || user.name || 'Agent'}</span>. 
-          <br />Votre e-mail a été validé. Un administrateur examine actuellement votre demande pour la zone 
-          <span style={{ fontWeight: '600', color: 'var(--text-main)' }}> {user.zone && user.zone.length > 0 ? (Array.isArray(user.zone) ? user.zone.join(', ') : user.zone) : 'Non spécifiée'}</span>.
+          <br />Votre e-mail a été validé. Un administrateur examine actuellement votre profil. Une fois approuvé, un secteur d'inspection cartographique vous sera assigné.
         </p>
 
         <div className="card" style={{ textAlign: 'left', marginBottom: '30px', padding: '20px', backgroundColor: '#f9fafb' }}>

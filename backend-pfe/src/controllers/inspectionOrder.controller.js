@@ -40,15 +40,16 @@ exports.createOrder = async (req, res) => {
       dueDate
     });
 
-    // Envoyer l'email à l'agent
-    try { await sendInspectionOrderEmail(agent, order); } catch (mailErr) {
-      console.warn('[MAIL] Erreur envoi email :', mailErr.message);
-    }
-
     const populated = await order.populate([
       { path: 'agent', select: 'name firstName email' },
       { path: 'sectorId', select: 'name city' }
     ]);
+
+    // Envoyer l'email à l'agent
+    try { await sendInspectionOrderEmail(agent, populated); } catch (mailErr) {
+      console.warn('[MAIL] Erreur envoi email :', mailErr.message);
+    }
+
     res.status(201).json({ message: 'Ordre d\'inspection émis avec succès.', order: populated });
   } catch (err) {
     console.error('createOrder error:', err);
@@ -85,6 +86,7 @@ exports.getMyOrders = async (req, res) => {
   try {
     const orders = await InspectionOrder.find({ agent: req.user.id })
       .populate('sentBy', 'name firstName')
+      .populate('sectorId', 'name city')
       .sort({ createdAt: -1 });
 
     res.json(orders);
@@ -164,8 +166,10 @@ exports.reassignOrder = async (req, res) => {
         
         await order.save();
 
+        const populated = await order.populate('sectorId', 'name city');
+
         // Envoyer l'email au nouvel agent
-        await sendInspectionOrderEmail(newAgent, order);
+        await sendInspectionOrderEmail(newAgent, populated);
 
         res.status(200).json({ message: "Ordre réaffecté avec succès.", order });
     } catch (error) {

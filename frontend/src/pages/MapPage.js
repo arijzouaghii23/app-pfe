@@ -77,9 +77,9 @@ const MapPage = () => {
                     
                     // Extraire les rapports des missions assignées qui ne sont pas terminées ou résolues
                     const missionsData = resMissions.data
-                        .filter(m => m.status !== 'TERMINÉE' && m.status !== 'RÉSOLU' && m.reportId)
+                        .filter(m => m.status !== 'COMPLETED' && m.reportId)
                         .map(m => ({
-                            ...m.reportId, // Assuming reportId contains the full report object
+                            ...m.reportId,
                             missionStatus: m.status,
                             missionPriority: m.priority
                         }));
@@ -87,7 +87,7 @@ const MapPage = () => {
                     // Extraire les rapports soumis par l'agent qui ne sont pas encore devenus des missions assignées à cet agent
                     const ownReportsData = resReports.data || [];
                     const missionReportIds = new Set(missionsData.map(m => m._id));
-                    const newOwnReports = ownReportsData.filter(r => !missionReportIds.has(r._id) && r.status !== 'REJETÉ');
+                    const newOwnReports = ownReportsData.filter(r => !missionReportIds.has(r._id) && r.status !== 'REJECTED');
 
                     fetchedReports = [...missionsData, ...newOwnReports];
                 } else {
@@ -95,7 +95,7 @@ const MapPage = () => {
                     const resReports = await axios.get('/api/reports', {
                         headers: { Authorization: `Bearer ${token}` }
                     });
-                    fetchedReports = resReports.data.filter(r => r.status !== 'REJETÉ');
+                    fetchedReports = resReports.data.filter(r => r.status !== 'REJECTED');
                 }
 
                 // Filtrer les rapports pour s'assurer qu'ils ont des coordonnées valides
@@ -142,22 +142,22 @@ const MapPage = () => {
     const getIconForReport = (report) => {
         // Vue Agent (Missions)
         if (report.missionStatus) {
-            if (report.missionStatus === 'EN_COURS') return icons.mission_en_cours;
-            if (report.missionStatus === 'COMPLETED' || report.missionStatus === 'RÉSOLU') return icons.mission_terminee;
+            if (report.missionStatus === 'IN_PROGRESS') return icons.mission_en_cours;
+            if (report.missionStatus === 'COMPLETED')   return icons.mission_terminee;
             return icons.mission_assignee;
         }
 
-        // Vue Expert / Admin
+        // Vue Expert / Admin — mapping sur les 5 statuts officiels
         if (report.status === 'PENDING_EXPERT') return icons.nouveau_rapport;
-        if (report.status === 'VALIDATED' || report.status === 'ACCEPTED' || report.status === 'accepte') return icons.mission_assignee;
-
-        // Priorité aux rapports validés ou missions actives
-        if (report.status === 'VALIDÉ_IA') return icons.critique; // Rouge pour l'alerte IA
+        if (report.status === 'VALIDATED')      return icons.mission_assignee;
+        if (report.status === 'IN_PROGRESS')    return icons.mission_en_cours;
+        if (report.status === 'COMPLETED')      return icons.mission_terminee;
+        if (report.status === 'REJECTED')       return icons.default;
 
         const gravity = report.aiClassification?.gravity;
         if (gravity === 'critique') return icons.critique;
-        if (gravity === 'modérée') return icons.modérée;
-        if (gravity === 'mineure') return icons.mineure;
+        if (gravity === 'modérée')  return icons.modérée;
+        if (gravity === 'mineure')  return icons.mineure;
 
         return icons.default;
     };
@@ -216,10 +216,15 @@ const MapPage = () => {
                                         fontWeight: '600'
                                     }}>
                                         {report.missionStatus 
-                                            ? `Mission ${report.missionStatus}` 
-                                            : (report.status === 'PENDING_EXPERT' ? 'Nouveau Signalement' 
-                                            : (report.status === 'VALIDÉ_IA' ? 'Détecté par IA' 
-                                            : report.status))}
+                                            ? (report.missionStatus === 'IN_PROGRESS' ? 'Mission En cours'
+                                            : report.missionStatus === 'COMPLETED'    ? 'Mission Terminée'
+                                            : 'Mission Assignée')
+                                            : (report.status === 'PENDING_EXPERT' ? 'En attente expert'
+                                            : report.status === 'VALIDATED'       ? 'Validé — assignable'
+                                            : report.status === 'IN_PROGRESS'     ? 'En cours'
+                                            : report.status === 'COMPLETED'       ? 'Terminé'
+                                            : report.status === 'REJECTED'        ? 'Rejeté'
+                                            : report.status)}
                                     </span>
                                 </p>
                                 <p style={{ margin: '0 0 5px 0', fontSize: '0.85rem' }}>
