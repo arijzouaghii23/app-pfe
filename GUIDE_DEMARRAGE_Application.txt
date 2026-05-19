@@ -1,0 +1,89 @@
+================================================================================
+           GUIDE DE DÉMARRAGE ET DE TEST - PLATEFORME SIG ROUTIER (IA)
+
+
+
+
+--------------------------------------------------------------------------------
+PARTIE 1 : DÉMARRAGE DES 3 SERVICES DE L'APPLICATION
+--------------------------------------------------------------------------------
+
+Il faut ouvrir 3 terminaux distincts.
+
+TERMINAL 1 : Lancer le Microservice d'Intelligence Artificielle (Python)
+-------------------------------------------------------------------------
+1. Naviguer dans le dossier du microservice :
+   cd "D:\PFE2026\Projet PFE 2026\microservice-ia"
+
+
+   1. Create the Environment
+Open your terminal or command prompt, navigate to your project folder, and run: 
+Windows/macOS/Linux: python -m venv .venv
+(Note: You can replace .venv with any name you like, but .venv is a standard convention.) 
+
+Python Packaging User Guide
+
+2. Activer l'environnement virtuel (nécessaire à chaque fois) :
+   .\venv\Scripts\Activate.ps1
+3.acceder au environnement virtuel
+    cd venv   
+
+3. Installer les dépendances (à faire une seule fois) :
+   pip install -r requirements.txt (pour chaima binome)
+
+4. Lancer le serveur FastAPI :
+   python main.py
+   
+
+   > Vous devriez voir un message indiquant que le modèle YOLO "bestModel.pt" est chargé.
+   > Le serveur écoute sur : http://localhost:8000
+
+TERMINAL 2 : Lancer le Backend (Node.js)
+-------------------------------------------------------------------------
+1. Naviguer dans le dossier du backend :
+   cd "D:\PFE2026\Projet PFE 2026\backend-pfe"
+
+2. Lancer le serveur (Si vous voulez que Node se relance à chaque modif, utilisez nodemon, sinon node) :
+   node src/server.js
+
+   > Vous devriez voir les messages indiquant la connexion à MongoDB.
+   > Le serveur écoute sur le port 5000.
+
+TERMINAL 3 : Lancer le Frontend (React)
+-------------------------------------------------------------------------
+1. Naviguer dans le dossier du frontend :
+   cd "D:\PFE2026\Projet PFE 2026\frontend"
+
+2. Lancer l'application :
+   npm start
+
+   > L'application va s'ouvrir dans votre navigateur sur : http://localhost:3000
+
+
+--------------------------------------------------------------------------------
+PARTIE 2 : SCÉNARIO DE TEST DE BOUT EN BOUT
+--------------------------------------------------------------------------------
+
+ÉTAPE 1 : Créer un signalement
+- Ouvrez le navigateur sur l'application (http://localhost:3000).
+- Connectez-vous avec un compte "Agent" (ou utilisez le formulaire Citoyen).
+- Allez sur la page de déclaration de signalement.
+- Uploadez une image contenant une dégradation (utilisez de préférence une image de votre dossier "Dataset_V2_4Classes").
+- Soumettez le formulaire.
+
+ÉTAPE 2 : Vérifier la magie en arrière-plan
+- Regardez le Terminal 2 (Node.js) : Vous devriez voir les logs indiquer que l'image est envoyée à YOLO.
+- Regardez le Terminal 1 (Python) : Vous devriez voir FastAPI traiter la requête et faire la prédiction avec OpenCV.
+- L'image annotée (avec les bounding boxes dessinées par YOLO) est physiquement sauvegardée dans :
+  D:\PFE2026\Projet PFE 2026\backend-pfe\uploads\annotated\
+
+ÉTAPE 3 : Validation par l'Expert
+- Déconnectez-vous du compte Agent et connectez-vous avec un compte "Expert".
+- Allez sur le Tableau de bord Expert (Dashboard Expert).
+- Vous devriez voir apparaître la carte avec le nouveau signalement.
+- Sur la carte, vérifiez que le diagnostic affiche bien une catégorie issue du Dictionnaire Métier (ex: "Nid-de-poule" ou "Fissure simple") et affiche le bon score de confiance.
+
+ÉTAPE 4 : Génération du PDF
+- Sur la carte du signalement dans le dashboard Expert, cliquez sur le bouton "Rapport PDF".
+- Un fichier va se télécharger (ex: rapport-inspection-XXXX.pdf).
+- Ouvrez le PDF : Vérifiez qu'il contient bien la mise en page officielle, l'image originale capturée par l'agent, et l'image contenant les annotations générées par YOLO.

@@ -163,3 +163,70 @@ exports.sendRejectionEmail = async (to, name) => {
     html: htmlContent
   });
 };
+
+exports.sendMissionEmail = async (agent, report, pdfBuffer) => {
+  const priorityLabel = report.mission?.priority === 'Haute' || report.mission?.priority === 'Urgente' 
+    ? '🔴 HAUTE PRIORITÉ' 
+    : '🟡 Priorité Normale';
+  
+  const reportNum = report._id.toString().slice(-6).toUpperCase();
+  const sectorName = report.sectorId?.name || report.city || '';
+  const startDateStr = report.mission?.startDate ? new Date(report.mission.startDate).toLocaleDateString('fr-FR') : 'Non définie';
+  const endDateStr = report.mission?.estimatedEndDate ? new Date(report.mission.estimatedEndDate).toLocaleDateString('fr-FR') : 'Non définie';
+
+  const htmlContent = `
+    <div style="font-family: 'Inter', Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #1e293b;">
+      <div style="background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%); padding: 40px 32px; border-radius: 20px 20px 0 0;">
+        <p style="color: rgba(255,255,255,0.7); font-size: 11px; font-weight: 900; letter-spacing: 0.2em; text-transform: uppercase; margin: 0 0 8px;">SIG Routier — Administration</p>
+        <h1 style="color: white; font-size: 26px; font-weight: 900; margin: 0;"> Mission de Réparation #${reportNum}</h1>
+        <span style="display: inline-block; margin-top: 12px; background: rgba(255,255,255,0.2); color: white; padding: 4px 14px; border-radius: 999px; font-size: 11px; font-weight: 800; letter-spacing: 0.1em;">${priorityLabel}</span>
+      </div>
+
+      <div style="background: #ffffff; padding: 32px; border: 1px solid #e2e8f0; border-top: none;">
+        <p style="color: #475569; font-size: 15px; margin: 0 0 24px;">Bonjour <strong>${agent.firstName || agent.name}</strong>,</p>
+        <p style="color: #475569; font-size: 15px; margin: 0 0 28px;">Une nouvelle mission de réparation routière vous a été assignée suite à la validation d'une détection IA par l'expert.</p>
+
+        <div style="background: #f8fafc; border-radius: 16px; padding: 24px; margin-bottom: 24px; border: 1px solid #e2e8f0;">
+          <h3 style="color: #94a3b8; font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.2em; margin: 0 0 20px;">📍 Détails de la Mission</h3>
+          <table style="width: 100%; border-collapse: collapse;">
+            <tr>
+              <td style="padding: 8px 0; color: #94a3b8; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; width: 140px;">Zone d'intervention</td>
+              <td style="padding: 8px 0; color: #1e293b; font-size: 15px; font-weight: 800;">${sectorName}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #94a3b8; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em;">Date de début</td>
+              <td style="padding: 8px 0; color: #1e293b; font-size: 15px; font-weight: 800;">${startDateStr}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #94a3b8; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em;">Fin estimée</td>
+              <td style="padding: 8px 0; color: #ef4444; font-size: 15px; font-weight: 800;">${endDateStr}</td>
+            </tr>
+          </table>
+        </div>
+
+        <div style="background: #eef2ff; border-radius: 16px; padding: 20px; margin-bottom: 24px; border-left: 4px solid #4f46e5;">
+          <p style="color: #4f46e5; font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.15em; margin: 0 0 8px;">Important</p>
+          <p style="color: #1e293b; font-size: 14px; font-weight: 600; margin: 0; line-height: 1.6;">Le rapport PDF détaillé d'expertise, incluant l'analyse IA et les recommandations officielles, est en pièce jointe.</p>
+        </div>
+
+        <div style="margin-top: 32px; text-align: center;">
+          <a href="http://localhost:3000/agent" style="background: #4f46e5; color: white; padding: 14px 32px; text-decoration: none; border-radius: 12px; font-weight: 800; font-size: 14px; display: inline-block;">Ouvrir mon tableau de bord</a>
+        </div>
+      </div>
+    </div>
+  `;
+
+  await transporter.sendMail({
+    from: process.env.EMAIL_USER,
+    to: agent.email,
+    subject: `[NOUVELLE MISSION] Réparation assignée - ${sectorName}`,
+    html: htmlContent,
+    attachments: [
+      {
+        filename: `Rapport_Inspection_${reportNum}.pdf`,
+        content: pdfBuffer,
+        contentType: 'application/pdf'
+      }
+    ]
+  });
+};

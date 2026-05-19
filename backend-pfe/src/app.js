@@ -7,7 +7,7 @@ const app = express();
 
 app.use(cors()); // Autorise le frontend à appeler le backend
 app.use(morgan("dev")); // Logue toutes les requêtes (ex: GET /api/auth 200)
-app.use(express.json()); // Pour parser le JSON
+app.use(express.json({ limit: '10mb' })); // Pour parser le JSON avec images Base64
 app.use('/uploads', express.static(path.join(__dirname, '../uploads'))); // Serve static images
 
 // Routes
@@ -19,8 +19,6 @@ app.use("/api/admin", require("./routes/auth.routes")); // Redirection sémantiq
 app.use("/api/reports", require("./routes/report.routes")); // Routes des signalements
 app.use("/api/inspection-orders", require("./routes/inspectionOrder.routes")); // Ordres d'inspection
 app.use("/api/sectors", require("./routes/sector.routes")); // Route des secteurs géographiques
-
-// Endpoint direct pour les missions de l'agent
-app.get("/api/missions", protect, reportController.getMyMissions);
+app.use("/api/missions", require("./routes/mission.routes")); // Routes des missions de réparation
 
 module.exports = app;

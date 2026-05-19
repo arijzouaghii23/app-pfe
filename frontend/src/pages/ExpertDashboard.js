@@ -1,365 +1,278 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import { ShieldAlert, PlusCircle, Check, FileText, User, AlertCircle, Save, X, CheckCircle } from 'lucide-react';
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import React, { useState, useEffect, useCallback } from 'react';
+import { ShieldAlert, FileText, CheckCircle, Clock, ClipboardCheck, Layers, TrendingUp, Inbox } from 'lucide-react';
+import {
+    PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer
+} from 'recharts';
+
+const API = 'http://localhost:5000';
+const getToken = () => localStorage.getItem('token');
+
+const authFetch = async (url, opts = {}) => {
+  const res = await fetch(`${API}${url}`, {
+    ...opts,
+    headers: { Authorization: `Bearer ${getToken()}`, ...(opts.headers || {}) },
+  });
+  return res;
+};
 
 const ExpertDashboard = () => {
     const [reports, setReports] = useState([]);
     const [missions, setMissions] = useState([]);
-    const [agents, setAgents] = useState([]);
     const [loading, setLoading] = useState(true);
 
-    // States pour la validation/correction
-    const [selectedReport, setSelectedReport] = useState(null);
-    const [editType, setEditType] = useState('');
-    const [editGravity, setEditGravity] = useState('');
-    const [selectedAgent, setSelectedAgent] = useState('');
-    const [missionPriority, setMissionPriority] = useState('Normale');
-
-    const fetchReports = async () => {
+    const fetchData = useCallback(async () => {
+        setLoading(true);
         try {
-            const token = localStorage.getItem('token');
-            // Récupère PENDING_EXPERT et VALIDATED uniquement (en attente d'affectation expert)
-            const res = await axios.get('/api/reports?status=PENDING_EXPERT', {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            setReports(res.data);
-            setLoading(false);
+            const [reportsRes, missionsRes] = await Promise.all([
+                authFetch('/api/reports'),
+                authFetch('/api/missions/all')
+            ]);
+            
+            if (reportsRes.ok) setReports(await reportsRes.json());
+            if (missionsRes.ok) setMissions(await missionsRes.json());
         } catch (err) {
-            console.error(err);
+            console.error("Erreur de chargement:", err);
+        } finally {
             setLoading(false);
         }
-    };
-
-    const fetchMissions = async () => {
-        try {
-            const token = localStorage.getItem('token');
-            const res = await axios.get('/api/missions', {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            setMissions(res.data);
-        } catch (err) {
-            console.error("Erreur missions", err);
-        }
-    };
-
-    const fetchAgents = async () => {
-        try {
-            const token = localStorage.getItem('token');
-            const res = await axios.get('/api/auth/agents', {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            setAgents(res.data);
-        } catch (err) {
-            console.error("Erreur agents", err);
-        }
-    };
-
-    useEffect(() => {
-        fetchReports();
-        fetchMissions();
-        fetchAgents();
     }, []);
 
-    const handleOpenAssign = (report) => {
-        setSelectedReport(report);
-        setEditType(report.aiClassification?.type || '');
-        setEditGravity(report.aiClassification?.gravity || 'modérée');
+    useEffect(() => {
+        fetchData();
+    }, [fetchData]);
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center min-h-[500px]">
+                <div className="w-12 h-12 border-4 border-amber-200 border-t-amber-600 rounded-full animate-spin" />
+            </div>
+        );
+    }
+
+    // Calcul des KPIs
+    const totalReports = reports.length;
+    const pendingReports = reports.filter(r => r.status === 'PENDING_EXPERT').length;
+    const pretsAffectation = reports.filter(r => r.status === 'VALIDATED').length;
+    
+    // Nouveaux KPIs (depuis profil)
+    const validations = reports.filter(r => ['VALIDATED', 'IN_PROGRESS', 'COMPLETED'].includes(r.status)).length;
+    const missionsCreated = missions.length;
+    const missionsCompleted = missions.filter(m => m.status === 'COMPLETED').length;
+    const closureRate = missionsCreated > 0 ? Math.round((missionsCompleted / missionsCreated) * 100) : 0;
+
+    const citizenReportsCount = reports.filter(r => r.source === 'citizen').length;
+    const agentReportsCount = reports.filter(r => r.source === 'agent').length;
+
+    // Données pour le Donut Chart (Source)
+    const sourceData = [
+        { name: 'Citoyens', value: citizenReportsCount },
+        { name: 'Agents', value: agentReportsCount }
+    ];
+    const COLORS = ['#3b82f6', '#10b981']; // Bleu pour Citoyens, Vert pour Agents
+
+    // Calcul pour le Bar Chart (Répartition des statuts)
+    const statusCounts = {
+        'En attente': 0,
+        'Validé': 0,
+        'En cours': 0,
+        'Terminé': 0,
+        'Rejeté': 0
     };
 
-    const validateAndAssign = async () => {
-        if (!selectedAgent) return alert("Veuillez choisir un agent.");
+    reports.forEach(r => {
+        if (r.status === 'PENDING_EXPERT') statusCounts['En attente']++;
+        else if (r.status === 'VALIDATED') statusCounts['Validé']++;
+        else if (r.status === 'IN_PROGRESS') statusCounts['En cours']++;
+        else if (r.status === 'COMPLETED') statusCounts['Terminé']++;
+        else if (r.status === 'REJECTED') statusCounts['Rejeté']++;
+    });
 
-        try {
-            const token = localStorage.getItem('token');
-            const headers = { Authorization: `Bearer ${token}` };
+    const statusData = ['En attente', 'Validé', 'En cours', 'Terminé'].map(key => ({
+        name: key,
+        Total: statusCounts[key]
+    }));
 
-            // 1. Valider le rapport (Expert) → statut officiel VALIDATED
-            await axios.patch(`/api/reports/${selectedReport._id}/validate`, {
-                type: editType,
-                gravity: editGravity,
-                status: 'VALIDATED'
-            }, { headers });
-
-            // 2. Créer la mission
-            await axios.post('/api/missions', {
-                reportId: selectedReport._id,
-                agentId: selectedAgent,
-                priority: missionPriority
-            }, { headers });
-
-            alert("Signalement validé et mission créée avec succès !");
-            setSelectedReport(null);
-            fetchReports();
-        } catch (err) {
-            alert("Erreur lors du traitement.");
+    // Couleurs sémantiques pour les barres
+    const getBarColor = (name) => {
+        switch (name) {
+            case 'En attente': return '#eab308'; // Jaune
+            case 'Validé': return '#3b82f6'; // Bleu
+            case 'En cours': return '#f97316'; // Orange
+            case 'Terminé': return '#10b981'; // Vert
+            case 'Rejeté': return '#ef4444'; // Rouge
+            default: return '#9ca3af';
         }
     };
-
-    const generatePDF = (report, stage = 1) => {
-        const doc = new jsPDF();
-
-        doc.setFontSize(22);
-        doc.text("RAPPORT D'INSPECTION ROUTIÈRE", 105, 20, { align: 'center' });
-
-        doc.setFontSize(12);
-        doc.text(`ID Signalement: ${report._id}`, 20, 40);
-        doc.text(`Date: ${new Date(report.createdAt).toLocaleString()}`, 20, 50);
-        doc.text(`Ville: ${report.city || 'Non spécifiée'}`, 20, 60);
-        doc.text(`Zone: ${report.zone || 'Non spécifiée'}`, 20, 70);
-
-        doc.text("DÉTAILS TECHNIQUE (ANALYSE IA & EXPERT)", 20, 90);
-        const tableData = [
-            ["Type d'anomalie", report.aiClassification?.type || "Non classifié"],
-            ["Gravité", report.aiClassification?.gravity || "Inconnue"],
-            ["Confiance IA", `${Math.round((report.aiClassification?.confidence || 0) * 100)}%`],
-            ["Statut Actuel", report.status]
-        ];
-
-        doc.autoTable({
-            startY: 95,
-            head: [['Caractéristique', 'Valeur']],
-            body: tableData,
-        });
-
-        if (stage === 2) {
-            // Ajouter les infos de mission si terminées
-            // ... logiques simplifiée ici pour la démo
-            doc.text("RÉSULTAT INTERVENTION TERRAIN", 20, doc.lastAutoTable.finalY + 20);
-            doc.text("L'intervention a été effectuée par l'agent.", 20, doc.lastAutoTable.finalY + 30);
-        }
-
-        doc.save(`Rapport_Inspection_${report._id}.pdf`);
-    };
-
-    if (loading) return <div style={{ padding: '20px' }}>Chargement...</div>;
 
     return (
-        <div>
-            <div className="page-header">
+        <div className="min-h-screen bg-slate-50/50 p-8">
+            <div className="max-w-7xl mx-auto space-y-8 animate-fade-in-up">
+                
+                {/* Header */}
                 <div>
-                    <h1 className="page-title">Tableau de Bord Expert</h1>
-                    <p style={{ color: 'var(--text-muted)' }}>Analysez les détections de l'IA et déclenchez des missions terrain officielles.</p>
+                    <p className="text-sm font-bold text-amber-600 tracking-wider uppercase mb-1">ANALYTIQUES</p>
+                    <h1 className="text-3xl font-black text-slate-900">Tableau de Bord Expert</h1>
+                    <p className="text-slate-500 mt-2">Vue d'ensemble et statistiques des signalements et missions d'expertise.</p>
                 </div>
-            </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '20px' }}>
-                {reports.length === 0 ? (
-                    <div className="card" style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '40px' }}>
-                        <Check size={48} color="var(--success)" style={{ margin: '0 auto 20px' }} />
-                        <h3>Aucun signalement en attente</h3>
-                        <p>L'IA n'a détecté aucune nouvelle anomalie dans vos zones.</p>
-                    </div>
-                ) : (
-                    reports.map(report => (
-                        <div key={report._id} className="card" style={{ display: 'flex', flexDirection: 'column' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-                                <span style={{
-                                    fontSize: '0.85rem',
-                                    padding: '3px 8px',
-                                    borderRadius: '4px',
-                                    fontWeight: '600',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '5px',
-                                    backgroundColor:
-                                        report.status === 'PENDING_EXPERT' ? '#fef9c3' :
-                                        report.status === 'VALIDATED'       ? '#dcfce7' :
-                                        report.status === 'REJECTED'        ? '#fee2e2' :
-                                        report.status === 'IN_PROGRESS'     ? '#dbeafe' : '#f3f4f6',
-                                    color:
-                                        report.status === 'PENDING_EXPERT' ? '#854d0e' :
-                                        report.status === 'VALIDATED'       ? '#166534' :
-                                        report.status === 'REJECTED'        ? '#991b1b' :
-                                        report.status === 'IN_PROGRESS'     ? '#1e40af' : '#374151'
-                                }}>
-                                    <ShieldAlert size={14} />
-                                    {report.status === 'PENDING_EXPERT' ? 'EN ATTENTE EXPERT' :
-                                     report.status === 'VALIDATED'       ? 'VALIDÉ' :
-                                     report.status === 'REJECTED'        ? 'REJETÉ (IA)' :
-                                     report.status === 'IN_PROGRESS'     ? 'EN COURS' :
-                                     report.status === 'COMPLETED'       ? 'TERMINÉ' : report.status}
-                                </span>
-                                <span style={{ padding: '4px 10px', borderRadius: '4px', fontSize: '0.85rem', backgroundColor: 'var(--bg-color)', border: '1px solid var(--border-color)' }}>
-                                    Zone: {report.zone || '?'}
-                                </span>
-                            </div>
-
-                            {report.imagePath && (
-                                <div style={{ height: '200px', borderRadius: '8px', overflow: 'hidden', marginBottom: '15px' }}>
-                                    <img
-                                        src={`http://localhost:5000/${report.imagePath}`}
-                                        alt="Détection"
-                                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                                    />
+                {/* Section : Statistiques Globales (Les Nouvelles Stats du Profil) */}
+                <div>
+                    <h2 className="text-lg font-bold text-slate-900 mb-4">Performances d'Expertise</h2>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        {/* Validations effectuées */}
+                        <div className="group bg-white rounded-2xl p-6 border border-slate-100 hover:border-amber-200 hover:shadow-2xl hover:shadow-amber-500/5 transition-all duration-500 hover:-translate-y-1">
+                            <div className="flex items-center gap-4">
+                                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 shadow-lg shadow-amber-500/25 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                                <ClipboardCheck className="w-7 h-7 text-white" />
                                 </div>
-                            )}
-
-                            <div style={{ backgroundColor: '#f9fafb', padding: '15px', borderRadius: '8px', marginBottom: '15px', borderLeft: '4px solid var(--primary)' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
-                                    <p style={{ margin: '0', fontSize: '0.9rem', color: 'var(--text-muted)' }}>Analyse IA :</p>
-                                    <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--primary)' }}>{report.city || 'Ville?'}</span>
+                                <div>
+                                <p className="text-xs text-slate-400 uppercase tracking-wider font-medium">Validations</p>
+                                <p className="text-2xl font-bold text-slate-900 mt-0.5">{validations}</p>
+                                <p className="text-xs text-slate-500">Rapports expertisés</p>
                                 </div>
-                                <h3 style={{ margin: '0 0 5px 0', fontSize: '1.1rem' }}>
-                                    {report.aiClassification?.type || 'Analyse en attente / Erreur'}
-                                </h3>
-                                <p style={{ margin: '0', fontSize: '0.9rem' }}>
-                                    {report.aiClassification ? (
-                                        <>
-                                            Gravité : <strong style={{ textTransform: 'capitalize', color: report.aiClassification.gravity === 'critique' ? 'var(--danger)' : 'inherit' }}>{report.aiClassification.gravity}</strong> |
-                                            Confiance : {Math.round((report.aiClassification.confidence || 0) * 100)}%
-                                        </>
-                                    ) : (
-                                        <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Détails techniques non disponibles</span>
-                                    )}
-                                </p>
                             </div>
-
-                            <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '15px', flex: 1 }}>
-                                {report.description || 'Aucune description fournie.'}
-                            </p>
-
-                            <div style={{ display: 'flex', gap: '10px', marginTop: 'auto', borderTop: '1px solid var(--border-color)', paddingTop: '15px' }}>
-                                <button onClick={() => handleOpenAssign(report)} className="btn btn-primary" style={{ flex: 1 }}>
-                                    <PlusCircle size={16} /> Affecter
-                                </button>
-                                <button onClick={() => generatePDF(report)} className="btn" style={{ flex: 1, border: '1px solid var(--border-color)', backgroundColor: 'white' }}>
-                                    <FileText size={16} /> Rapport
-                                </button>
+                            <div className="mt-4 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                <div className="h-full bg-gradient-to-r from-amber-500 to-orange-500 rounded-full transition-all duration-1000" style={{ width: `${Math.min(validations, 100)}%` }} />
                             </div>
                         </div>
-                    ))
-                )}
-            </div>
 
-            {/* Modal de Validation et Affectation */}
-            {selectedReport && (
-                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px' }}>
-                    <div className="card" style={{ width: '100%', maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto', position: 'relative' }}>
-                        <button onClick={() => setSelectedReport(null)} style={{ position: 'absolute', right: '20px', top: '20px', background: 'none', border: 'none', cursor: 'pointer' }}>
-                            <X size={24} color="var(--text-muted)" />
-                        </button>
+                        {/* Missions créées / affectées */}
+                        <div className="group bg-white rounded-2xl p-6 border border-slate-100 hover:border-indigo-200 hover:shadow-2xl hover:shadow-indigo-500/5 transition-all duration-500 hover:-translate-y-1">
+                            <div className="flex items-center gap-4">
+                                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 shadow-lg shadow-indigo-500/25 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                                <Layers className="w-7 h-7 text-white" />
+                                </div>
+                                <div>
+                                <p className="text-xs text-slate-400 uppercase tracking-wider font-medium">Missions</p>
+                                <p className="text-2xl font-bold text-slate-900 mt-0.5">{missionsCreated}</p>
+                                <p className="text-xs text-slate-500">Créées & affectées</p>
+                                </div>
+                            </div>
+                            <div className="mt-4 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                <div className="h-full bg-gradient-to-r from-indigo-500 to-violet-500 rounded-full transition-all duration-1000" style={{ width: `${Math.min((missionsCreated / 50) * 100, 100)}%` }} />
+                            </div>
+                        </div>
 
-                        <h2 style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <ShieldAlert color="var(--primary)" /> Validation & Mission
-                        </h2>
+                        {/* Taux de clôture des missions */}
+                        <div className="group bg-white rounded-2xl p-6 border border-slate-100 hover:border-emerald-200 hover:shadow-2xl hover:shadow-emerald-500/5 transition-all duration-500 hover:-translate-y-1">
+                            <div className="flex items-center gap-4">
+                                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg shadow-emerald-500/25 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                                <TrendingUp className="w-7 h-7 text-white" />
+                                </div>
+                                <div>
+                                <p className="text-xs text-slate-400 uppercase tracking-wider font-medium">Taux de Clôture</p>
+                                <p className="text-2xl font-bold text-slate-900 mt-0.5">{closureRate}%</p>
+                                <p className="text-xs text-slate-500">Missions terminées</p>
+                                </div>
+                            </div>
+                            <div className="mt-4 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                <div className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full transition-all duration-1000" style={{ width: `${closureRate}%` }} />
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
-                        <div style={{ marginBottom: '25px', display: 'flex', gap: '20px' }}>
-                            <img src={`http://localhost:5000/${selectedReport.imagePath}`} style={{ width: '150px', height: '100px', borderRadius: '8px', objectFit: 'cover' }} alt="Fix" />
+                {/* Section : Suivi des Rapports */}
+                <div>
+                    <h2 className="text-lg font-bold text-slate-900 mb-4">Suivi des Signalements</h2>
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                        
+                        <div className="bg-white rounded-2xl p-5 border border-slate-100 flex items-center gap-4 shadow-sm hover:shadow-md transition-shadow">
+                            <div className="p-3 bg-slate-100 rounded-xl text-slate-600">
+                                <FileText size={28} />
+                            </div>
                             <div>
-                                <p style={{ margin: 0, fontWeight: 'bold' }}>{selectedReport.city}</p>
-                                <p style={{ margin: '5px 0', fontSize: '0.9rem', color: 'var(--text-muted)' }}>{selectedReport.description}</p>
+                                <p className="text-xs text-slate-400 font-bold uppercase">Total Signalements</p>
+                                <h2 className="text-2xl font-black text-slate-800">{totalReports}</h2>
                             </div>
                         </div>
 
-                        <div className="form-group">
-                            <label>Corriger le type de dégradation (si besoin)</label>
-                            <input type="text" className="input-field" value={editType} onChange={(e) => setEditType(e.target.value)} />
-                        </div>
-
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-                            <div className="form-group">
-                                <label>Gravité confirmée</label>
-                                <select className="input-field" value={editGravity} onChange={(e) => setEditGravity(e.target.value)}>
-                                    <option value="mineure">Mineure</option>
-                                    <option value="modérée">Modérée</option>
-                                    <option value="critique">Critique</option>
-                                </select>
+                        <div className="bg-white rounded-2xl p-5 border border-slate-100 flex items-center gap-4 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
+                            <div className="absolute top-0 left-0 w-1 h-full bg-amber-400" />
+                            <div className="p-3 bg-amber-50 rounded-xl text-amber-500">
+                                <ShieldAlert size={28} />
                             </div>
-                            <div className="form-group">
-                                <label>Priorité Mission</label>
-                                <select className="input-field" value={missionPriority} onChange={(e) => setMissionPriority(e.target.value)}>
-                                    <option value="Normale">Normale</option>
-                                    <option value="Haute">Haute</option>
-                                    <option value="Urgente">Urgente</option>
-                                </select>
+                            <div>
+                                <p className="text-xs text-slate-400 font-bold uppercase">En Attente</p>
+                                <h2 className="text-2xl font-black text-slate-800">{pendingReports}</h2>
                             </div>
                         </div>
 
-                        <div className="form-group">
-                            <label>Affecter à un agent de la zone</label>
-                            <select className="input-field" value={selectedAgent} onChange={(e) => setSelectedAgent(e.target.value)}>
-                                <option value="">Choisir un agent...</option>
-                                {agents.filter(a => !selectedReport.zone || a.zone.includes(selectedReport.zone)).map(agent => (
-                                    <option key={agent._id} value={agent._id}>{agent.name} ({agent.email})</option>
-                                ))}
-                                {agents.length === 0 && <option disabled>Aucun agent disponible</option>}
-                            </select>
+                        <div className="bg-white rounded-2xl p-5 border border-slate-100 flex items-center gap-4 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
+                            <div className="absolute top-0 left-0 w-1 h-full bg-blue-500" />
+                            <div className="p-3 bg-blue-50 rounded-xl text-blue-500">
+                                <Inbox size={28} />
+                            </div>
+                            <div>
+                                <p className="text-xs text-slate-400 font-bold uppercase">Prêts pour affectation</p>
+                                <h2 className="text-2xl font-black text-slate-800">{pretsAffectation}</h2>
+                            </div>
                         </div>
 
-                        <div style={{ display: 'flex', gap: '15px', marginTop: '10px' }}>
-                            <button onClick={validateAndAssign} className="btn btn-primary" style={{ flex: 1 }}>
-                                <Save size={18} /> Valider et Créer Mission
-                            </button>
-                            <button onClick={() => setSelectedReport(null)} className="btn" style={{ backgroundColor: '#f3f4f6', flex: 1 }}>
-                                Annuler
-                            </button>
+                        <div className="bg-white rounded-2xl p-5 border border-slate-100 flex items-center gap-4 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
+                            <div className="absolute top-0 left-0 w-1 h-full bg-emerald-500" />
+                            <div className="p-3 bg-emerald-50 rounded-xl text-emerald-500">
+                                <CheckCircle size={28} />
+                            </div>
+                            <div>
+                                <p className="text-xs text-slate-400 font-bold uppercase">Missions Terminées</p>
+                                <h2 className="text-2xl font-black text-slate-800">{missionsCompleted}</h2>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                {/* Section : Graphiques */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    {/* Donut Chart: Source */}
+                    <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
+                        <h3 className="text-md font-bold text-slate-800 mb-4">Source des Signalements</h3>
+                        <div className="h-64">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <PieChart>
+                                    <Pie
+                                        data={sourceData}
+                                        cx="50%"
+                                        cy="50%"
+                                        innerRadius={60}
+                                        outerRadius={80}
+                                        paddingAngle={5}
+                                        dataKey="value"
+                                        stroke="none"
+                                    >
+                                        {sourceData.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                        ))}
+                                    </Pie>
+                                    <RechartsTooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }} />
+                                    <Legend verticalAlign="bottom" height={36} iconType="circle" />
+                                </PieChart>
+                            </ResponsiveContainer>
+                        </div>
+                    </div>
+
+                    {/* Bar Chart: Statuts */}
+                    <div className="lg:col-span-2 bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
+                        <h3 className="text-md font-bold text-slate-800 mb-4">Répartition par Statut</h3>
+                        <div className="h-64">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={statusData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} dy={10} />
+                                    <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
+                                    <RechartsTooltip cursor={{ fill: '#f8fafc' }} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }} />
+                                    <Bar dataKey="Total" radius={[6, 6, 0, 0]} maxBarSize={50}>
+                                        {statusData.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={getBarColor(entry.name)} />
+                                        ))}
+                                    </Bar>
+                                </BarChart>
+                            </ResponsiveContainer>
                         </div>
                     </div>
                 </div>
-            )}
 
-            {/* Section Suivi des Missions */}
-            <div style={{ marginTop: '50px' }}>
-                <h2 style={{ fontSize: '1.5rem', fontWeight: '600', marginBottom: '20px', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <CheckCircle size={24} /> Suivi des Missions Terrain
-                </h2>
-                <div className="card" style={{ padding: '0', overflow: 'hidden' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                        <thead style={{ backgroundColor: '#f9fafb', borderBottom: '1px solid var(--border-color)' }}>
-                            <tr>
-                                <th style={{ padding: '15px 20px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>ID Mission</th>
-                                <th style={{ padding: '15px 20px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>Agent</th>
-                                <th style={{ padding: '15px 20px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>Ville / Zone</th>
-                                <th style={{ padding: '15px 20px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>Statut</th>
-                                <th style={{ padding: '15px 20px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {missions.length === 0 ? (
-                                <tr>
-                                    <td colSpan="5" style={{ padding: '30px', textAlign: 'center', color: 'var(--text-muted)' }}>Aucune mission active.</td>
-                                </tr>
-                            ) : (
-                                missions.map(mission => (
-                                    <tr key={mission._id} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                                        <td style={{ padding: '15px 20px', fontSize: '0.9rem', fontWeight: '500' }}>#{mission._id.slice(-6)}</td>
-                                        <td style={{ padding: '15px 20px' }}>
-                                            <div style={{ fontWeight: '600', fontSize: '0.9rem' }}>{mission.agentId?.name || 'Inconnu'}</div>
-                                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{mission.agentId?.email}</div>
-                                        </td>
-                                        <td style={{ padding: '15px 20px' }}>
-                                            <div style={{ fontWeight: '500', fontSize: '0.9rem' }}>{mission.reportId?.city || '?'}</div>
-                                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Zone: {mission.zone}</div>
-                                        </td>
-                                        <td style={{ padding: '15px 20px' }}>
-                                            <span style={{
-                                                fontSize: '0.75rem',
-                                                padding: '4px 10px',
-                                                borderRadius: '20px',
-                                                backgroundColor: mission.status === 'COMPLETED' ? '#dcfce7' : mission.status === 'IN_PROGRESS' ? '#dbeafe' : '#fef9c3',
-                                                color: mission.status === 'COMPLETED' ? '#166534' : mission.status === 'IN_PROGRESS' ? '#1e40af' : '#854d0e',
-                                                fontWeight: '600'
-                                            }}>
-                                                {mission.status}
-                                            </span>
-                                        </td>
-                                        <td style={{ padding: '15px 20px' }}>
-                                            <button
-                                                onClick={() => generatePDF(mission.reportId, 2)}
-                                                className="btn"
-                                                style={{ padding: '6px 12px', fontSize: '0.8rem', backgroundColor: 'var(--bg-color)', border: '1px solid var(--border-color)' }}
-                                            >
-                                                <FileText size={14} /> Rapport Final
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
-                </div>
             </div>
         </div>
     );

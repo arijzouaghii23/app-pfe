@@ -5,7 +5,8 @@ import 'leaflet/dist/leaflet.css';
 import { Link } from 'react-router-dom';
 import { OpenStreetMapProvider, GeoSearchControl } from 'leaflet-geosearch';
 import 'leaflet-geosearch/dist/geosearch.css';
-import { MapPin, Camera, Zap, CheckCircle, XCircle, Bot, Lock, Rocket, X, Check } from 'lucide-react';
+import { MapPin, Camera, Zap, CheckCircle, XCircle, Bot, Lock, Rocket, X, Check, Activity, AlertTriangle, CheckCircle2, Sparkles, ArrowRight, Shield, MousePointer2 } from 'lucide-react';
+import './LandingPage.css';
 
 // Fix icône Leaflet (problème Webpack)
 delete L.Icon.Default.prototype._getIconUrl;
@@ -213,32 +214,342 @@ function ReportModal({ latlng, onClose, onSuccess }) {
   );
 }
 
-// ── Section : Comment ça marche ───────────────────────────────────────────────
+// ── HeroMockup ───────────────────────────────────────────────
+const HeroMockup = () => {
+  return (
+    <div className="hero-mockup-wrap">
+      {/* Decorative glow rings */}
+      <div className="glow-ring glow-ring-1" />
+      <div className="glow-ring glow-ring-2" />
+
+      {/* Floating badges */}
+      <div className="floating-badge badge-top">
+        <div className="badge-dot pulse-dot" />
+        <div>
+          <div className="badge-title">Vérification IA</div>
+          <div className="badge-sub">Vérifié • 70%</div>
+        </div>
+      </div>
+
+      <div className="floating-badge badge-bottom">
+        <CheckCircle2 size={18} color="#22c55e" />
+        <div>
+          <div className="badge-title">Signalement envoyé</div>
+          <div className="badge-sub">Il y a 2 sec.</div>
+        </div>
+      </div>
+
+      <div className="floating-badge badge-side">
+        <Zap size={16} color="#fbbf24" />
+        <span style={{ fontSize: '0.75rem', color: '#fde68a', fontWeight: 600 }}>
+          Temps réel
+        </span>
+      </div>
+
+      {/* Screen frame — landscape tablet/PC */}
+      <div className="screen-frame">
+        <div className="screen-bezel">
+          {/* Webcam dot */}
+          <div className="screen-cam" />
+        </div>
+        <div className="screen-display">
+          {/* App header */}
+          <div className="phone-header">
+            <img src="/logoSIG.png" alt="RouteSignal Logo" style={{ height: '24px', width: 'auto', objectFit: 'contain' }} />
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'white' }}>
+                RouteSignal
+              </div>
+              <div style={{ fontSize: '0.6rem', color: '#94a3b8' }}>
+                Casablanca, Maroc
+              </div>
+            </div>
+            <Activity size={16} color="#60a5fa" />
+          </div>
+
+          {/* Map area */}
+          <div className="phone-map">
+            {/* Grid lines */}
+            <div className="map-grid" />
+
+            {/* Roads */}
+            <svg
+              viewBox="0 0 500 250"
+              style={{
+                position: 'absolute',
+                inset: 0,
+                width: '100%',
+                height: '100%',
+              }}
+            >
+              <path
+                d="M 0 125 Q 120 100 250 130 T 500 120"
+                stroke="rgba(96,165,250,0.4)"
+                strokeWidth="3"
+                fill="none"
+              />
+              <path
+                d="M 250 0 Q 260 60 250 125 T 240 250"
+                stroke="rgba(96,165,250,0.3)"
+                strokeWidth="3"
+                fill="none"
+              />
+              <path
+                d="M 50 40 Q 180 80 320 60 T 480 50"
+                stroke="rgba(96,165,250,0.2)"
+                strokeWidth="2"
+                fill="none"
+              />
+            </svg>
+
+            {/* Heatmap blobs */}
+            <div className="heatmap heatmap-1" />
+            <div className="heatmap heatmap-2" />
+
+            {/* Scan pulse */}
+            <div className="scan-pulse" />
+            <div className="scan-pulse scan-pulse-delay" />
+
+            {/* Map markers */}
+            <div className="map-marker marker-1">
+              <MapPin size={14} fill="#ef4444" color="#fff" strokeWidth={2} />
+            </div>
+            <div className="map-marker marker-2">
+              <MapPin size={14} fill="#f59e0b" color="#fff" strokeWidth={2} />
+            </div>
+            <div className="map-marker marker-3 marker-active">
+              <MapPin size={16} fill="#3b82f6" color="#fff" strokeWidth={2} />
+            </div>
+          </div>
+
+          {/* Bottom bar with notification + stats */}
+          <div className="screen-bottom-bar">
+            {/* Notification card */}
+            <div className="phone-notif">
+              <div className="phone-notif-icon">
+                <AlertTriangle size={14} color="#fff" />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div
+                  style={{
+                    fontSize: '0.7rem',
+                    fontWeight: 700,
+                    color: 'white',
+                    marginBottom: '2px',
+                  }}
+                >
+                  Dégradation détectée
+                </div>
+                <div style={{ fontSize: '0.6rem', color: '#94a3b8' }}>
+                  Bd Zerktouni • Priorité haute
+                </div>
+                {/* Confidence bar */}
+                <div className="conf-bar">
+                  <div className="conf-fill" />
+                </div>
+              </div>
+            </div>
+
+            {/* Stats row */}
+            <div className="phone-stats">
+              <div className="phone-stat">
+                <div className="phone-stat-num">247</div>
+                <div className="phone-stat-lbl">Signalés</div>
+              </div>
+              <div className="phone-stat">
+                <div className="phone-stat-num" style={{ color: '#22c55e' }}>
+                  198
+                </div>
+                <div className="phone-stat-lbl">Résolus</div>
+              </div>
+              <div className="phone-stat">
+                <div className="phone-stat-num" style={{ color: '#fbbf24' }}>
+                  49
+                </div>
+                <div className="phone-stat-lbl">En cours</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ── HowItWorks ───────────────────────────────────────────────
 const steps = [
   {
-    icon: <MapPin size={28} className="text-indigo-500" />,
+    num: '01',
     title: 'Localisez',
-    desc: 'Cliquez sur l\'anomalie directement sur la carte interactive. Aucune adresse à taper.',
+    desc: "Cliquez directement sur la carte interactive à l'endroit exact de l'anomalie. Aucune adresse à taper, c'est intuitif et rapide.",
+    icon: <MapPin size={22} />,
+    accent: '#3b82f6',
+    preview: (
+      <div className="step-preview step-preview-map">
+        <div className="step-map-grid" />
+        <svg
+          viewBox="0 0 200 120"
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}
+        >
+          <path
+            d="M 0 60 Q 50 40 100 60 T 200 50"
+            stroke="rgba(59,130,246,0.5)"
+            strokeWidth="2"
+            fill="none"
+          />
+          <path
+            d="M 100 0 L 95 120"
+            stroke="rgba(59,130,246,0.3)"
+            strokeWidth="2"
+            fill="none"
+          />
+        </svg>
+        <div className="step-pin">
+          <MapPin size={18} fill="#ef4444" color="#fff" strokeWidth={2} />
+        </div>
+        <div className="step-pulse" />
+        <div className="step-cursor"><MousePointer2 size={24} className="text-slate-400" /></div>
+      </div>
+    ),
   },
   {
-    icon: <Camera size={28} className="text-indigo-500" />,
+    num: '02',
     title: 'Photographiez',
-    desc: 'Prenez une photo de la dégradation. Notre IA Gemini analyse automatiquement la gravité.',
+    desc: "Prenez une photo de la dégradation. Notre système vérifie automatiquement votre photo pour confirmer la présence du dommage avant de l'envoyer.",
+    icon: <Camera size={22} />,
+    accent: '#8b5cf6',
+    preview: (
+      <div className="step-preview step-preview-camera">
+        <div className="step-camera-frame">
+          <div className="step-camera-corner tl" />
+          <div className="step-camera-corner tr" />
+          <div className="step-camera-corner bl" />
+          <div className="step-camera-corner br" />
+          <div className="step-road-bg" />
+          <div className="step-pothole" />
+          <div className="step-detect-box">
+            <span className="step-detect-label">Vérifié : 70%</span>
+          </div>
+        </div>
+        <div className="step-camera-btn">
+          <div className="step-camera-btn-inner" />
+        </div>
+      </div>
+    ),
   },
   {
-    icon: <Zap size={28} className="text-indigo-500" />,
-    title: 'On s\'en charge',
-    desc: 'Votre signalement est transmis instantanément à nos experts et agents de terrain.',
+    num: '03',
+    title: "On s'en charge",
+    desc: 'Votre signalement est transmis instantanément aux experts et agents de terrain.',
+    icon: <Activity size={22} />,
+    accent: '#10b981',
+    preview: (
+      <div className="step-preview step-preview-status">
+        <div className="status-row status-row-done">
+          <div className="status-check">✓</div>
+          <div>
+            <div className="status-title">Signalement reçu</div>
+            <div className="status-time">Il y a 2 sec.</div>
+          </div>
+        </div>
+        <div className="status-connector" />
+        <div className="status-row status-row-done">
+          <div className="status-check">✓</div>
+          <div>
+            <div className="status-title">Analyse IA validée</div>
+            <div className="status-time">Il y a 1 sec.</div>
+          </div>
+        </div>
+        <div className="status-connector" />
+        <div className="status-row status-row-active">
+          <div className="status-check status-check-active">
+            <span className="status-spinner" />
+          </div>
+          <div>
+            <div className="status-title">Agent en route</div>
+            <div className="status-time">
+              <Sparkles size={10} style={{ display: 'inline' }} /> En cours
+            </div>
+          </div>
+        </div>
+      </div>
+    ),
   },
 ];
 
-// ── Section Statistiques ──────────────────────────────────────────────────────
-const stats = [
-  { value: '< 30s', label: 'Pour signaler' },
-  { value: 'IA', label: 'Analyse automatique' },
-  { value: '100%', label: 'Anonyme & Gratuit' },
-  { value: '24/7', label: 'Disponible' },
-];
+const HowItWorks = () => {
+  return (
+    <div className="how-it-works">
+      {/* Timeline connector line */}
+      <div className="timeline-line" />
+
+      {steps.map((step, idx) => (
+        <div
+          key={step.num}
+          className={`step-row ${idx % 2 === 1 ? 'step-row-reverse' : ''}`}
+        >
+          {/* Text block */}
+          <div className="step-content">
+            <div
+              className="step-num"
+              style={{
+                background: `linear-gradient(135deg, ${step.accent} 0%, ${step.accent}cc 100%)`,
+                WebkitBackgroundClip: 'text',
+                backgroundClip: 'text',
+                color: 'transparent',
+              }}
+            >
+              {step.num}
+            </div>
+            <div className="step-title-row">
+              <div
+                className="step-icon"
+                style={{
+                  background: `${step.accent}15`,
+                  color: step.accent,
+                  border: `1px solid ${step.accent}30`,
+                }}
+              >
+                {step.icon}
+              </div>
+              <h3 className="step-title">{step.title}</h3>
+            </div>
+            <p className="step-desc">{step.desc}</p>
+            <div
+              className="step-meta"
+              style={{ color: step.accent }}
+            >
+              <ArrowRight size={14} />
+              <span>Étape {step.num}</span>
+            </div>
+          </div>
+
+          {/* Visual preview */}
+          <div className="step-visual">
+            <div
+              className="step-visual-glow"
+              style={{
+                background: `radial-gradient(circle, ${step.accent}33 0%, transparent 70%)`,
+              }}
+            />
+            {step.preview}
+          </div>
+
+          {/* Timeline dot */}
+          <div
+            className="timeline-dot"
+            style={{
+              background: step.accent,
+              boxShadow: `0 0 0 6px ${step.accent}20, 0 0 20px ${step.accent}80`,
+            }}
+          >
+            <div className="timeline-dot-inner" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
 
 // ── LandingPage Principale ────────────────────────────────────────────────────
 export default function LandingPage() {
@@ -270,152 +581,270 @@ export default function LandingPage() {
   const scrollToMap = () => mapSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
 
   return (
-    <div className="min-h-screen bg-white font-sans">
+    <div className="landing-wrapper">
+      {/* ==========================================
+          SECTION 1 : HERO (DARK TECH)
+      ========================================== */}
+      <section
+        className="dark-section"
+        style={{
+          padding: '80px 20px 40px',
+          minHeight: '85vh',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
+        <div className="hero-grid" />
 
-      {/* ── SECTION HÉROS ─────────────────────────────────────────────────── */}
-      <section className="relative min-h-screen flex flex-col overflow-hidden"
-        style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%)' }}>
+        {/* Header */}
+        <header
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            marginBottom: '60px',
+            position: 'relative',
+            zIndex: 10,
+          }}
+        >
+          <img src="/logoSIG.png" alt="RouteSignal Logo" style={{ height: '72px', width: 'auto', marginRight: '15px', objectFit: 'contain' }} />
+          <span style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>
+            RouteSignal
+          </span>
+        </header>
 
-        {/* Grille de fond décorative */}
-        <div className="absolute inset-0 opacity-10"
-          style={{ backgroundImage: 'linear-gradient(rgba(99,179,237,0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(99,179,237,0.3) 1px, transparent 1px)', backgroundSize: '60px 60px' }} />
-
-        {/* Cercles lumineux décoratifs */}
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
-
-        {/* Navbar */}
-        <nav className="relative z-10 flex items-center justify-between px-6 md:px-12 py-6">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg">
-              <span className="text-white font-black text-sm">SIG</span>
+        {/* Split Layout */}
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gap: '40px',
+            alignItems: 'center',
+            flex: 1,
+            position: 'relative',
+            zIndex: 10,
+          }}
+        >
+          {/* Left — Text */}
+          <div>
+            <div
+              style={{
+                display: 'inline-block',
+                border: '1px solid rgba(255,255,255,0.2)',
+                padding: '6px 16px',
+                borderRadius: '20px',
+                fontSize: '0.8rem',
+                color: '#94a3b8',
+                marginBottom: '20px',
+              }}
+            >
+              <span style={{ color: '#3b82f6', marginRight: '8px' }}>●</span>
+              SIGNALEMENT CITOYEN — GRATUIT & ANONYME
             </div>
-            <span className="text-white font-black text-lg tracking-tight">RouteSignal</span>
+            <h1 style={{ fontSize: '4rem', lineHeight: '1.1', marginBottom: '20px' }}>
+              Ensemble, <br />
+              <span className="text-gradient">améliorons</span>
+              <br />
+              nos routes.
+            </h1>
+            <p
+              style={{
+                color: '#94a3b8',
+                fontSize: '1.1rem',
+                marginBottom: '40px',
+                maxWidth: '400px',
+                lineHeight: '1.6',
+              }}
+            >
+              Signalez une dégradation en <strong>30 secondes</strong>. Notre IA
+              et nos agents s'occupent du reste.
+            </p>
+
+            <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
+              <button
+                className="btn btn-primary"
+                onClick={() =>
+                  document
+                    .getElementById('map-section')
+                    ?.scrollIntoView({ behavior: 'smooth' })
+                }
+                style={{
+                  backgroundColor: '#3b82f6',
+                  color: 'white',
+                  border: 'none',
+                  padding: '14px 24px',
+                  borderRadius: '12px',
+                  fontSize: '1rem',
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 14px 0 rgba(59, 130, 246, 0.39)',
+                }}
+              >
+                <MapPin size={18} /> Signaler maintenant <ArrowRight size={18} />
+              </button>
+              <button
+                className="btn"
+                onClick={() =>
+                  document
+                    .getElementById('how-it-works')
+                    ?.scrollIntoView({ behavior: 'smooth' })
+                }
+                style={{
+                  backgroundColor: 'transparent',
+                  color: 'white',
+                  border: '1px solid rgba(255,255,255,0.2)',
+                  padding: '14px 24px',
+                  borderRadius: '12px',
+                  fontSize: '1rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                Comment ça marche ?
+              </button>
+            </div>
           </div>
-          <Link to="/login"
-            className="flex items-center gap-2 text-slate-400 hover:text-white text-xs font-bold uppercase tracking-widest transition-colors border border-slate-700 hover:border-slate-500 px-4 py-2 rounded-xl">
-            <Lock size={14} /> Espace Pro
-          </Link>
-        </nav>
 
-        {/* Contenu héros */}
-        <div className="relative z-10 flex-1 flex flex-col items-center justify-center text-center px-6 md:px-12 py-16">
-
-          {/* Badge */}
-          <div className="inline-flex items-center gap-2 bg-blue-500/10 border border-blue-500/30 text-blue-300 text-xs font-bold uppercase tracking-widest px-4 py-2 rounded-full mb-8">
-            <span className="w-2 h-2 bg-blue-400 rounded-full animate-pulse" />
-            Signalement Citoyen — Gratuit & Anonyme
+          {/* Right — Premium mockup */}
+          <div style={{ display: 'flex', justifyContent: 'center' }}>
+            <HeroMockup />
           </div>
+        </div>
 
-          {/* Titre */}
-          <h1 className="text-4xl md:text-6xl lg:text-7xl font-black text-white leading-tight mb-6 max-w-4xl">
-            Ensemble,{' '}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-400">
-              améliorons
-            </span>
-            {' '}nos routes.
-          </h1>
+        {/* Glassmorphism stat cards */}
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(4, 1fr)',
+            gap: '20px',
+            marginTop: '60px',
+            position: 'relative',
+            zIndex: 10,
+          }}
+        >
+          {[
+            { title: '< 30s', label: 'Pour signaler' },
+            { title: 'IA', label: 'Analyse Automatique' },
+            { title: '100%', label: 'Anonyme & Gratuit' },
+            { title: '24/7', label: 'Disponible' },
+          ].map((stat) => (
+            <div key={stat.label} className="glass-card">
+              <h3 style={{ fontSize: '1.5rem', margin: '0 0 5px 0' }}>
+                {stat.title}
+              </h3>
+              <p
+                style={{
+                  fontSize: '0.75rem',
+                  color: '#94a3b8',
+                  margin: 0,
+                  textTransform: 'uppercase',
+                  letterSpacing: '1px',
+                }}
+              >
+                {stat.label}
+              </p>
+            </div>
+          ))}
+        </div>
+      </section>
 
-          {/* Sous-titre */}
-          <p className="text-slate-400 text-lg md:text-xl font-medium mb-10 max-w-2xl leading-relaxed">
-            Signalez une dégradation en{' '}
-            <span className="text-white font-bold">30 secondes</span>.
-            {' '}Notre IA et nos agents s'occupent du reste.
+      {/* ==========================================
+          SECTION 2 : ACTION (CLEAN LIGHT)
+      ========================================== */}
+      <section className="light-section" id="how-it-works">
+        <div style={{ textAlign: 'center', marginBottom: '60px', position: 'relative', zIndex: 2 }}>
+          <h4
+            style={{
+              color: '#3b82f6',
+              fontSize: '0.85rem',
+              fontWeight: 'bold',
+              textTransform: 'uppercase',
+              letterSpacing: '1px',
+              marginBottom: '10px',
+            }}
+          >
+            Simple & Rapide
+          </h4>
+          <h2
+            style={{
+              fontSize: '2.5rem',
+              fontWeight: 800,
+              marginBottom: '15px',
+            }}
+          >
+            Comment ça marche ?
+          </h2>
+          <p style={{ color: '#64748b', fontSize: '1.1rem' }}>
+            Trois étapes. Trente secondes. Un impact réel sur votre quotidien.
           </p>
-
-          {/* CTA Buttons */}
-          <div className="flex flex-col sm:flex-row gap-4 mb-16">
-            <button
-              onClick={scrollToMap}
-              className="group px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black text-base rounded-2xl transition-all duration-200 shadow-2xl shadow-blue-900/50 hover:shadow-blue-500/30 hover:-translate-y-0.5 active:scale-95 flex items-center justify-center gap-2"
-            >
-              <MapPin size={20} />
-              <span>Signaler maintenant</span>
-              <span className="group-hover:translate-x-1 transition-transform">→</span>
-            </button>
-            <button
-              onClick={() => document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' })}
-              className="px-8 py-4 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-white font-bold text-base rounded-2xl transition-all duration-200 hover:-translate-y-0.5"
-            >
-              Comment ça marche ?
-            </button>
-          </div>
-
-          {/* Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8 max-w-3xl w-full">
-            {stats.map(s => (
-              <div key={s.label} className="bg-white/5 border border-white/10 rounded-2xl px-4 py-4 text-center backdrop-blur-sm">
-                <p className="text-2xl md:text-3xl font-black text-white mb-1">{s.value}</p>
-                <p className="text-slate-400 text-xs font-semibold uppercase tracking-widest">{s.label}</p>
-              </div>
-            ))}
-          </div>
         </div>
 
-        {/* Chevron animé */}
-        <div className="relative z-10 flex justify-center pb-8">
-          <button onClick={scrollToMap} className="text-slate-600 hover:text-slate-400 transition-colors animate-bounce">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <path d="M6 9l6 6 6-6" />
-            </svg>
-          </button>
+        <HowItWorks />
+
+        {/* Carte Premium */}
+        <div style={{ textAlign: 'center', marginBottom: '40px', position: 'relative', zIndex: 2 }} id="map-section">
+          <h4
+            style={{
+              color: '#3b82f6',
+              fontSize: '0.85rem',
+              fontWeight: 'bold',
+              textTransform: 'uppercase',
+              letterSpacing: '1px',
+              marginBottom: '10px',
+            }}
+          >
+            Carte Interactive
+          </h4>
+          <h2
+            style={{
+              fontSize: '2.5rem',
+              fontWeight: 800,
+              marginBottom: '15px',
+            }}
+          >
+            Signaler maintenant
+          </h2>
         </div>
-      </section>
 
-      {/* ── SECTION : COMMENT ÇA MARCHE ───────────────────────────────────── */}
-      <section id="how-it-works" className="py-24 px-6 md:px-12 bg-slate-50">
-        <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-16">
-            <p className="text-blue-600 font-black text-xs uppercase tracking-widest mb-3">Simple & Rapide</p>
-            <h2 className="text-3xl md:text-4xl font-black text-slate-900 mb-4">Comment ça marche ?</h2>
-            <p className="text-slate-500 text-lg font-medium max-w-xl mx-auto">
-              Trois étapes. Trente secondes. Un impact réel sur votre quotidien.
-            </p>
+        <div style={{ maxWidth: '1000px', margin: '0 auto', position: 'relative' }} ref={mapSectionRef}>
+          <div
+            style={{
+              position: 'absolute',
+              top: '-20px',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              backgroundColor: 'white',
+              padding: '10px 24px',
+              borderRadius: '30px',
+              boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              zIndex: 9999,
+              color: '#3b82f6',
+              fontWeight: 'bold',
+              fontSize: '0.9rem',
+            }}
+          >
+            <span
+              style={{
+                width: '8px',
+                height: '8px',
+                backgroundColor: '#3b82f6',
+                borderRadius: '50%',
+                display: 'inline-block',
+              }}
+            ></span>
+            Cliquez sur la carte pour placer un marqueur
           </div>
 
-          <div className="grid md:grid-cols-3 gap-8">
-            {steps.map((step, i) => (
-              <div key={i}
-                className="group bg-white rounded-3xl p-8 border border-slate-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
-                <div className="w-14 h-14 bg-gradient-to-br from-blue-50 to-indigo-100 rounded-2xl flex items-center justify-center text-3xl mb-6 group-hover:scale-110 transition-transform duration-300">
-                  {step.icon}
-                </div>
-                <div className="flex items-center gap-3 mb-3">
-                  <span className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-black flex items-center justify-center flex-shrink-0">
-                    {i + 1}
-                  </span>
-                  <h3 className="font-black text-slate-800 text-lg">{step.title}</h3>
-                </div>
-                <p className="text-slate-500 font-medium leading-relaxed">{step.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── SECTION : CARTE DE SIGNALEMENT ────────────────────────────────── */}
-      <section ref={mapSectionRef} className="py-24 px-6 md:px-12 bg-white">
-        <div className="max-w-6xl mx-auto">
-
-          {/* Titre section */}
-          <div className="text-center mb-12">
-            <p className="text-blue-600 font-black text-xs uppercase tracking-widest mb-3">Carte Interactive</p>
-            <h2 className="text-3xl md:text-4xl font-black text-slate-900 mb-4">Signaler maintenant</h2>
-            <p className="text-slate-500 text-lg font-medium max-w-xl mx-auto">
-              Cliquez sur la carte à l'endroit exact de la dégradation. Un formulaire s'ouvrira automatiquement.
-            </p>
-          </div>
-
-          {/* Instruction pill */}
-          <div className="flex justify-center mb-6">
-            <div className="inline-flex items-center gap-2 bg-blue-50 border border-blue-200 text-blue-700 text-sm font-bold px-5 py-2.5 rounded-full">
-              <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
-              Cliquez sur la carte pour placer un marqueur
-            </div>
-          </div>
-
-          {/* Carte Leaflet */}
-          <div className="rounded-3xl overflow-hidden shadow-2xl border border-slate-200" style={{ height: '520px' }}>
+          <div
+            className="premium-map-container"
+            style={{ height: '500px', backgroundColor: '#e2e8f0' }}
+          >
             <MapContainer
               center={[45.75, 4.85]}
               zoom={12}
@@ -424,68 +853,145 @@ export default function LandingPage() {
             >
               <SearchField />
               <TileLayer
-                url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
               />
               <MapClickHandler onMapClick={handleMapClick} />
               {markerPos && <Marker position={markerPos} />}
             </MapContainer>
           </div>
 
-          <p className="text-center text-slate-400 text-sm font-medium mt-4 flex items-center justify-center gap-1.5">
-            <Lock size={14} /> Signalement 100% anonyme — aucune donnée personnelle requise
+          <p
+            style={{
+              textAlign: 'center',
+              color: '#94a3b8',
+              fontSize: '0.85rem',
+              marginTop: '15px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '5px',
+            }}
+          >
+            <Shield size={14} /> Signalement 100% anonyme — aucune donnée
+            personnelle requise
           </p>
         </div>
       </section>
 
-      {/* ── SECTION : BANNIÈRE IA ─────────────────────────────────────────── */}
-      <section className="py-20 px-6 md:px-12"
-        style={{ background: 'linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%)' }}>
-        <div className="max-w-4xl mx-auto text-center">
-          <div className="flex justify-center mb-6">
-            <Bot size={56} className="text-blue-400" />
-          </div>
-          <h2 className="text-2xl md:text-3xl font-black text-white mb-4">
+      {/* ==========================================
+          SECTION 3 : IA & FOOTER (DARK)
+      ========================================== */}
+      <section
+        style={{
+          backgroundColor: '#020617',
+          color: 'white',
+          padding: '80px 20px 30px',
+        }}
+      >
+        <div
+          style={{
+            textAlign: 'center',
+            maxWidth: '800px',
+            margin: '0 auto 60px',
+          }}
+        >
+          <Activity
+            size={40}
+            color="#3b82f6"
+            style={{ margin: '0 auto 20px', display: 'block' }}
+          />
+          <h2
+            style={{
+              fontSize: '2rem',
+              fontWeight: 'bold',
+              marginBottom: '20px',
+            }}
+          >
             Propulsé par l'Intelligence Artificielle
           </h2>
-          <p className="text-slate-400 text-lg font-medium mb-8 max-w-2xl mx-auto leading-relaxed">
-            Chaque photo est analysée par <span className="text-blue-400 font-bold">Google Gemini</span> pour détecter
-            automatiquement les dégradations routières et prioriser les interventions.
+          <p
+            style={{
+              color: '#94a3b8',
+              fontSize: '1.1rem',
+              lineHeight: '1.6',
+              marginBottom: '30px',
+            }}
+          >
+            Chaque photo est analysée instantanément par notre{' '}
+            <strong style={{ color: '#60a5fa' }}>Intelligence Artificielle</strong>{' '}
+            pour identifier la dégradation et déclencher l'intervention des agents
+            au plus vite.
           </p>
-          <div className="flex flex-wrap justify-center gap-3">
-            {['Détection automatique', 'Score de confiance', 'Triage instantané', 'Zéro intervention manuelle'].map(tag => (
-              <span key={tag} className="bg-white/10 border border-white/10 text-white/70 text-xs font-bold px-4 py-2 rounded-full">
-                <span className="flex items-center gap-1"><Check size={12} /> {tag}</span>
+
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'center',
+              gap: '15px',
+              flexWrap: 'wrap',
+            }}
+          >
+            {[
+              'Détection automatique',
+              'Score de confiance',
+              'Triage instantané',
+              'Zéro intervention manuelle',
+            ].map((txt) => (
+              <span key={txt} className="ai-badge">
+                <CheckCircle
+                  size={14}
+                  style={{ display: 'inline', marginRight: '5px' }}
+                  color="#3b82f6"
+                />{' '}
+                {txt}
               </span>
             ))}
           </div>
         </div>
-      </section>
 
-      {/* ── FOOTER ────────────────────────────────────────────────────────── */}
-      <footer className="bg-slate-950 px-6 md:px-12 py-10">
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
-              <span className="text-white font-black text-xs">SIG</span>
-            </div>
-            <span className="text-slate-400 text-sm font-semibold">RouteSignal © 2025</span>
+        {/* Footer */}
+        <footer
+          style={{
+            borderTop: '1px solid rgba(255,255,255,0.05)',
+            paddingTop: '30px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            fontSize: '0.85rem',
+            color: '#475569',
+            flexWrap: 'wrap',
+            gap: '15px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <img src="/logoSIG.png" alt="RouteSignal Logo" style={{ height: '55px', width: 'auto', objectFit: 'contain' }} />
+            RouteSignal © 2026
           </div>
 
-          <p className="text-slate-600 text-xs font-medium text-center">
-            Projet PFE — Système d'Information Géographique Routier
-          </p>
+          <div>Projet PFE — Système d'Information Géographique Routier</div>
 
-          {/* Accès discret pour l'équipe */}
-          <Link
-            to="/login"
-            className="flex items-center gap-2 text-slate-700 hover:text-slate-400 text-xs font-bold uppercase tracking-widest transition-colors group"
+          <a
+            href="/login"
+            style={{
+              color: '#475569',
+              textDecoration: 'none',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '5px',
+              transition: 'color 0.2s',
+            }}
           >
-            <Lock size={14} className="group-hover:rotate-12 transition-transform" />
-            <span>Espace Professionnel</span>
-          </Link>
-        </div>
-      </footer>
+            <Lock size={14} /> ESPACE PROFESSIONNEL
+          </a>
+        </footer>
+      </section>
+
+      {/* Toast notification */}
+      {toast && (
+        <Toast type={toast.type} title={toast.title} message={toast.message}
+          onClose={() => setToast(null)} />
+      )}
 
       {/* Modale signalement */}
       {showModal && markerPos && (
@@ -494,12 +1000,6 @@ export default function LandingPage() {
           onClose={() => { setShowModal(false); setMarkerPos(null); }}
           onSuccess={handleSuccess}
         />
-      )}
-
-      {/* Toast notification */}
-      {toast && (
-        <Toast type={toast.type} title={toast.title} message={toast.message}
-          onClose={() => setToast(null)} />
       )}
     </div>
   );

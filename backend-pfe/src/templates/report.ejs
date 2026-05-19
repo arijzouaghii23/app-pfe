@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Rapport d'Inspection - <%= report._id %></title>
+    <style>
+        body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #333; margin: 0; padding: 20px; }
+        .header { text-align: center; border-bottom: 2px solid #2c3e50; padding-bottom: 10px; margin-bottom: 30px; }
+        .header h1 { color: #2c3e50; margin: 0; font-size: 24px; }
+        .header p { color: #7f8c8d; margin: 5px 0 0 0; font-size: 14px; }
+        .section { margin-bottom: 30px; }
+        .section-title { font-size: 18px; color: #2980b9; border-bottom: 1px solid #bdc3c7; padding-bottom: 5px; margin-bottom: 15px; }
+        .info-grid { display: table; width: 100%; border-collapse: collapse; }
+        .info-row { display: table-row; }
+        .info-label { display: table-cell; padding: 8px; font-weight: bold; width: 30%; background-color: #f8f9fa; border: 1px solid #dee2e6; }
+        .info-value { display: table-cell; padding: 8px; width: 70%; border: 1px solid #dee2e6; }
+        
+        .images-container { text-align: center; margin-top: 20px; page-break-inside: avoid; }
+        .image-wrapper { display: inline-block; width: 48%; margin: 0 1%; vertical-align: top; }
+        .image-wrapper img { max-width: 100%; height: auto; border: 1px solid #ccc; border-radius: 4px; }
+        .image-caption { font-size: 12px; color: #555; margin-top: 5px; font-weight: bold; }
+        
+        .ai-alert { background-color: #e8f4f8; border-left: 4px solid #3498db; padding: 15px; margin-top: 20px; }
+        .ai-alert h4 { margin-top: 0; color: #2c3e50; }
+        .recommendation { background-color: #fdf2e9; border-left: 4px solid #e67e22; padding: 15px; margin-top: 15px; }
+        
+        .footer { position: fixed; bottom: 20px; width: 100%; text-align: center; font-size: 10px; color: #95a5a6; border-top: 1px solid #ecf0f1; padding-top: 10px; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>Rapport d'Inspection Routière</h1>
+        <p>Généré automatiquement par le Système d'Information Géographique (SIG) Intelligent</p>
+    </div>
+
+    <div class="section">
+        <h2 class="section-title">Informations Générales</h2>
+        <div class="info-grid">
+            <div class="info-row">
+                <div class="info-label">Référence Signalement</div>
+                <div class="info-value"><%= report._id %></div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">Date du Signalement</div>
+                <div class="info-value"><%= new Date(report.createdAt).toLocaleDateString('fr-FR', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute:'2-digit' }) %></div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">Source</div>
+                <div class="info-value">
+                    <% if (report.source === 'agent') { %>
+                        Agent de terrain <% if (report.owner) { %>| <%= (report.owner.firstName || report.owner.name || '') + ' ' + (report.owner.lastName || '') %> | <%= report.owner.email || 'Email non spécifié' %> | ID: <%= report.owner._id || report.owner %><% } %>
+                    <% } else { %>
+                        Citoyen
+                    <% } %>
+                </div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">Secteur / Ville</div>
+                <div class="info-value"><%= report.sectorId && report.sectorId.name ? report.sectorId.name + ' - ' + (report.assignedCity || report.city) : (report.assignedCity || report.city) %></div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">Adresse Précise</div>
+                <div class="info-value"><%= report.address || 'Non spécifiée' %></div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">Coordonnées GPS</div>
+                <div class="info-value">Lat: <%= report.location.coordinates[1].toFixed(6) %>, Lon: <%= report.location.coordinates[0].toFixed(6) %></div>
+            </div>
+        </div>
+    </div>
+
+    <% if (report.aiResult && report.aiResult.yoloClassName) { %>
+    <div class="section">
+        <!-- Titre dynamique : 'Analyse Expert' si validé, sinon 'Analyse Préliminaire IA' -->
+        <% if (report.expertValidation && report.expertValidation.signatureBase64) { %>
+            <h2 class="section-title" style="color: #27ae60; border-bottom-color: #27ae60;">Analyse Expert</h2>
+        <% } else { %>
+            <h2 class="section-title">Analyse Préliminaire (en attente de validation)</h2>
+        <% } %>
+        
+        <div class="ai-alert">
+            <% if (report.expertValidation && report.expertValidation.correctedDegradationType) { %>
+                <h4>Diagnostic validé par l'Expert : <%= report.expertValidation.correctedDegradationType %></h4>
+            <% } else { %>
+                <h4>Diagnostic IA : <%= report.aiResult.yoloClassName %></h4>
+            <% } %>
+            <p><strong>Confiance IA :</strong> <%= (report.aiResult.yoloConfidence * 100).toFixed(1) %>%</p>
+        </div>
+
+        <div class="recommendation">
+            <h4 style="margin-top:0; color: #d35400;">Recommandation d'Intervention</h4>
+            <% if (report.expertValidation && report.expertValidation.correctedRecommendation) { %>
+                <p><strong>Recommandation Experte :</strong> <%= report.expertValidation.correctedRecommendation %></p>
+            <% } else { %>
+                <p><%= report.aiResult.businessRecommendation %></p>
+            <% } %>
+        </div>
+    </div>
+    <% } %>
+
+    <div class="section">
+        <h2 class="section-title">Preuves Visuelles</h2>
+        <div class="images-container">
+            <div class="image-wrapper">
+                <!-- Original Image -->
+                <img src="<%= originalImageBase64 %>" alt="Photo originale">
+                <div class="image-caption">Photo Originale du Terrain</div>
+            </div>
+            
+            <% if (annotatedImageBase64) { %>
+            <div class="image-wrapper">
+                <!-- Annotated Image from YOLO -->
+                <img src="<%= annotatedImageBase64 %>" alt="Photo annotée par l'IA">
+                <div class="image-caption">Détection YOLOv8 (Bounding Box)</div>
+            </div>
+            <% } %>
+        </div>
+    </div>
+
+    <% if (history && history.length > 0) { %>
+    <div class="section" style="page-break-inside: avoid;">
+        <h2 class="section-title">Historique d'Intervention et de Réparation</h2>
+        <% history.forEach(function(item, index) { %>
+            <div style="background-color: #f8f9fa; border-left: 4px solid #8e44ad; padding: 15px; margin-bottom: 15px;">
+                <p style="margin: 0 0 10px 0; color: #8e44ad; font-weight: bold;">
+                    Étape <%= index + 1 %> - <%= new Date(item.date).toLocaleDateString('fr-FR', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute:'2-digit' }) %>
+                </p>
+                <p style="margin: 0 0 15px 0;"><%= item.comment %></p>
+                <% if (item.imageBase64) { %>
+                    <div style="text-align: center;">
+                        <img src="<%= item.imageBase64 %>" style="max-height: 200px; border: 1px solid #ccc; border-radius: 4px;" alt="Photo avancement">
+                    </div>
+                <% } %>
+            </div>
+        <% }); %>
+    </div>
+    <% } %>
+
+    <% if (report.status === 'COMPLETED' && report.assignedTo) { %>
+    <div class="section" style="page-break-inside: avoid;">
+        <div style="background-color: #d1fae5; border-left: 4px solid #10b981; padding: 15px; border-radius: 4px;">
+            <p style="margin: 0; color: #065f46; font-weight: bold;">
+                Mission de réparation clôturée par : <%= (report.assignedTo.firstName || report.assignedTo.name || '') + ' ' + (report.assignedTo.lastName || '') %> (ID: <%= report.assignedTo._id || report.assignedTo %>)
+            </p>
+        </div>
+    </div>
+    <% } %>
+
+    <div class="section" style="page-break-inside: avoid;">
+        <h2 class="section-title">Validation et Signature de l'Expert</h2>
+        
+        <% if (report.expertValidation && report.expertValidation.signatureBase64) { %>
+            <div style="border: 2px solid #2ecc71; padding: 20px; border-radius: 8px; background-color: #f9fffb;">
+                <h4 style="color: #27ae60; margin-top: 0;">✔ Document validé officiellement</h4>
+                <div class="info-grid" style="margin-bottom: 15px;">
+                    <div class="info-row">
+                        <div class="info-label" style="background-color: transparent; border: none; padding: 4px 0; width: 40%;">Date de validation officielle :</div>
+                        <div class="info-value" style="border: none; padding: 4px 0;"><%= new Date(report.expertValidation.validatedAt).toLocaleDateString('fr-FR', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute:'2-digit' }) %></div>
+                    </div>
+                    <div class="info-row">
+                        <div class="info-label" style="background-color: transparent; border: none; padding: 4px 0;">ID de l'Expert :</div>
+                        <div class="info-value" style="border: none; padding: 4px 0;"><%= report.expertValidation.validatedBy %></div>
+                    </div>
+                    <% if (report.expertValidation.correctionExpertDateAt) { %>
+                    <div class="info-row">
+                        <div class="info-label" style="background-color: transparent; border: none; padding: 4px 0;">Date de correction :</div>
+                        <div class="info-value" style="border: none; padding: 4px 0;"><%= new Date(report.expertValidation.correctionExpertDateAt).toLocaleDateString('fr-FR', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute:'2-digit' }) %></div>
+                    </div>
+                    <% } %>
+                    <% if (report.expertValidation.correctedDegradationType || report.expertValidation.correctedRecommendation) { %>
+                    <div class="info-row">
+                        <div class="info-label" style="background-color: transparent; border: none; padding: 4px 0;">Correction apportée :</div>
+                        <div class="info-value" style="border: none; padding: 4px 0;">
+                            <% if (report.expertValidation.correctedDegradationType) { %><strong>Type :</strong> <%= report.expertValidation.correctedDegradationType %><br><% } %>
+                            <% if (report.expertValidation.correctedRecommendation) { %><strong>Action :</strong> <%= report.expertValidation.correctedRecommendation %><% } %>
+                        </div>
+                    </div>
+                    <% } %>
+                </div>
+                <div style="text-align: right; margin-top: 10px;">
+                    <p style="font-size: 12px; color: #7f8c8d; margin-bottom: 5px;">Signature électronique :</p>
+                    <img src="<%= report.expertValidation.signatureBase64 %>" style="max-height: 100px; border-bottom: 1px solid #ccc; padding-bottom: 5px;" alt="Signature de l'expert">
+                </div>
+            </div>
+        <% } else { %>
+            <div style="background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; color: #856404;">
+                <strong>Document en attente de validation expert.</strong>
+                <p style="margin: 5px 0 0 0; font-size: 14px;">Ce rapport n'a pas encore été examiné et validé officiellement.</p>
+            </div>
+        <% } %>
+    </div>
+
+    <div class="footer">
+        Document confidentiel - SIG Routier PFE 2026 - Ce rapport ne se substitue pas au jugement final de l'expert métier.
+    </div>
+
+</body>
+</html>

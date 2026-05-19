@@ -34,7 +34,7 @@ const OrderModal = ({ sector, agents, onClose, onConfirm, loading }) => {
     onConfirm({ agentId: selectedAgentId, dueDate, instructions });
   };
 
-  const availableAgents = agents.filter(a => !a.isBlocked);
+  const availableAgents = agents;
 
   return (
     /* Backdrop */
@@ -79,11 +79,15 @@ const OrderModal = ({ sector, agents, onClose, onConfirm, loading }) => {
               className="w-full bg-slate-50 border-2 border-transparent focus:border-indigo-400 rounded-2xl px-4 py-3 text-slate-700 font-semibold text-sm outline-none transition-all"
             >
               <option value="">— Sélectionner un agent —</option>
-              {agents.map(agent => (
-                <option key={agent._id} value={agent._id} disabled={agent.isBlocked}>
-                  {agent.firstName} {agent.name}{agent.isBlocked ? ' (Occupé)' : ''}
-                </option>
-              ))}
+              {agents.map(agent => {
+                const load = agent.activeTaskCount || 0;
+                const isMax = load >= 3;
+                return (
+                  <option key={agent._id} value={agent._id}>
+                    {agent.firstName} {agent.name} ({load}/3) {isMax ? '[MAX]' : ''}
+                  </option>
+                );
+              })}
             </select>
           </div>
 

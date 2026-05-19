@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { login } from '../services/api';
-import { ShieldCheck, Mail, Lock } from 'lucide-react';
+import { Mail, Lock } from 'lucide-react';
+import AuthLayout from '../componets/AuthLayout';
 
 function Login() {
     const [email, setEmail] = useState('');
@@ -37,7 +38,7 @@ function Login() {
                 if (status === 'pending') {
                     navigate('/wait'); // Redirection vers WaitPage si en attente
                 } else {
-                    navigate('/agent');
+                    navigate('/map');
                 }
             } else {
                 navigate('/');
@@ -48,36 +49,36 @@ function Login() {
     };
 
     return (
-        <div className="auth-container">
-            <div className="glass-panel auth-card">
-                <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-                    <ShieldCheck size={48} color="var(--primary)" style={{ margin: '0 auto' }} />
-                    <h2 className="auth-title">SIG Routier</h2>
-                    <p className="auth-subtitle">Espace d'Authentification Sécurisé</p>
+        <AuthLayout>
+            <div className="w-full flex flex-col items-center">
+                <img src="/logoSIG.png" alt="RouteSignal Logo" className="h-12 w-auto mb-6 object-contain" />
+
+                <div className="text-center mb-8">
+                    <h2 className="text-2xl font-black text-slate-800 tracking-tight">Terminal de Gestion</h2>
+                    <p className="text-sm font-medium text-slate-500 mt-2">Connectez-vous pour accéder au centre de commande RouteSignal.</p>
                 </div>
 
                 {error && (
-                    <div style={{ padding: '12px', backgroundColor: '#fee2e2', color: 'var(--danger)', borderRadius: '8px', marginBottom: '20px', fontSize: '0.9rem', textAlign: 'center' }}>
+                    <div className="w-full p-3 mb-6 bg-red-50 text-red-600 rounded-xl text-sm text-center font-medium border border-red-100">
                         {error}
                     </div>
                 )}
 
                 {successMsg && (
-                    <div style={{ padding: '12px', backgroundColor: '#e0ffe8', color: 'var(--success)', borderRadius: '8px', marginBottom: '20px', fontSize: '0.9rem', textAlign: 'center' }}>
+                    <div className="w-full p-3 mb-6 bg-emerald-50 text-emerald-600 rounded-xl text-sm text-center font-medium border border-emerald-100">
                         {successMsg}
                     </div>
                 )}
 
-                <form onSubmit={handleLogin}>
-                    <div className="form-group">
-                        <label>Adresse E-mail</label>
-                        <div style={{ position: 'relative' }}>
-                            <Mail size={18} style={{ position: 'absolute', left: '14px', top: '14px', color: 'var(--text-muted)' }} />
+                <form onSubmit={handleLogin} className="w-full space-y-5">
+                    <div>
+                        <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Adresse E-mail</label>
+                        <div className="relative">
+                            <Mail size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
                             <input
                                 type="email"
-                                className="input-field"
-                                style={{ paddingLeft: '40px' }}
-                                placeholder="expert@sig-routier.fr"
+                                className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 rounded-xl text-sm outline-none transition-all"
+                                placeholder="admin@routesignal.ma"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 required
@@ -85,37 +86,44 @@ function Login() {
                         </div>
                     </div>
 
-                    <div className="form-group">
-                        <label>Mot de Passe</label>
-                        <div style={{ position: 'relative' }}>
-                            <Lock size={18} style={{ position: 'absolute', left: '14px', top: '14px', color: 'var(--text-muted)' }} />
+                    <div>
+                        <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Mot de Passe</label>
+                        <div className="relative">
+                            <Lock size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
                             <input
                                 type="password"
-                                className="input-field"
-                                style={{ paddingLeft: '40px' }}
+                                className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 rounded-xl text-sm outline-none transition-all"
                                 placeholder="••••••••"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                                 required
                             />
                         </div>
+                        <div className="text-right mt-2">
+                            <Link to="/forgot-password" className="text-xs font-semibold text-blue-500 hover:text-blue-600 transition-colors">
+                                Mot de passe oublié ?
+                            </Link>
+                        </div>
                     </div>
 
-                    <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '10px' }}>
+                    <button type="submit" className="w-full py-4 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-xl shadow-lg shadow-blue-500/30 transition-all active:scale-[0.98] flex items-center justify-center gap-2 mt-4">
                         Se Connecter
+                        <span className="text-lg leading-none">→</span>
                     </button>
-                    <div style={{ textAlign: 'center', marginTop: '15px' }}>
-                        <Link to="/forgot-password" style={{ color: 'var(--text-muted)', fontSize: '0.85rem', textDecoration: 'none' }}>
-                            Mot de passe oublié ?
-                        </Link>
-                    </div>
                 </form>
 
-                <p style={{ textAlign: 'center', marginTop: '24px', fontSize: '0.9rem', color: 'var(--text-muted)' }}>
-                    <Link to="/register" style={{ color: 'var(--primary)', fontWeight: '600', textDecoration: 'none' }}>Créer un compte</Link>
-                </p>
+                <div className="mt-8 text-center flex flex-col items-center gap-4">
+                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest">OU</p>
+                    <p className="text-sm font-medium text-slate-500">
+                        Nouvel agent ? <Link to="/register" className="text-blue-500 font-bold hover:text-blue-600 transition-colors">Créer un accès</Link>
+                    </p>
+                </div>
+
+                <div className="mt-12 text-center text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                    © 2026 RouteSignal — Plateforme de gestion routière
+                </div>
             </div>
-        </div>
+        </AuthLayout>
     );
 }
 

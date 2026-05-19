@@ -18,15 +18,21 @@ exports.createOrder = async (req, res) => {
       return res.status(404).json({ message: 'Agent introuvable ou inactif.' });
     }
 
-    // règle isBlocked : l'agent a-t-il déjà un ordre pending en cours (globalement) ?
-    const existingOrder = await InspectionOrder.findOne({
-      agent: agentId,
-      status: 'pending'
+    // règle isBlocked : l'agent a-t-il moins de 3 tâches actives ?
+    const Report = require('../models/Report');
+    const activePatrolsCount = await InspectionOrder.countDocuments({ 
+      agent: agentId, 
+      status: { $in: ['pending', 'acknowledged'] } 
     });
+    const activeMissionsCount = await Report.countDocuments({
+      assignedTo: agentId,
+      status: 'IN_PROGRESS'
+    });
+    const totalActiveTasks = activePatrolsCount + activeMissionsCount;
 
-    if (existingOrder) {
+    if (totalActiveTasks >= 3) {
       return res.status(409).json({
-        message: `Affectation Impossible — L'agent ${agent.firstName || agent.name} a déjà un ordre en cours.`,
+        message: `Affectation Impossible — L'agent ${agent.firstName || agent.name} a atteint sa charge maximale (3 tâches).`,
         isBlocked: true
       });
     }
@@ -62,15 +68,27 @@ exports.getActiveAgents = async (req, res) => {
   try {
     const agents = await User.find({ role: 'agent', status: 'active' }).select('name firstName email');
 
-    // Pour chaque agent, vérifier s'il a un ordre pending (globalement)
+    const Report = require('../models/Report');
+
+    // Pour chaque agent, compter le total de tâches actives
     const agentsWithStatus = await Promise.all(agents.map(async (agent) => {
-      const pendingOrder = await InspectionOrder.findOne({ agent: agent._id, status: 'pending' });
+      const activePatrolsCount = await InspectionOrder.countDocuments({ 
+        agent: agent._id, 
+        status: { $in: ['pending', 'acknowledged'] } 
+      });
+      const activeMissionsCount = await Report.countDocuments({
+        assignedTo: agent._id,
+        status: 'IN_PROGRESS'
+      });
+      const totalActiveTasks = activePatrolsCount + activeMissionsCount;
+
       return {
         _id: agent._id,
         name: agent.name,
         firstName: agent.firstName,
         email: agent.email,
-        isBlocked: !!pendingOrder
+        activeTaskCount: totalActiveTasks,
+        isBlocked: totalActiveTasks >= 3
       };
     }));
 
@@ -155,9 +173,19 @@ exports.reassignOrder = async (req, res) => {
         if (!newAgent) return res.status(404).json({ message: 'Nouvel agent introuvable ou inactif.' });
 
         // Vérification isBlocked pour le nouvel agent
-        const existingOrder = await InspectionOrder.findOne({ agent: newAgentId, zone: order.zone, status: 'pending' });
-        if (existingOrder) {
-             return res.status(409).json({ message: `L'agent ${newAgent.firstName} est déjà occupé dans la zone "${order.zone}".` });
+        const Report = require('../models/Report');
+        const activePatrolsCount = await InspectionOrder.countDocuments({ 
+          agent: newAgentId, 
+          status: { $in: ['pending', 'acknowledged'] } 
+        });
+        const activeMissionsCount = await Report.countDocuments({
+          assignedTo: newAgentId,
+          status: 'IN_PROGRESS'
+        });
+        const totalActiveTasks = activePatrolsCount + activeMissionsCount;
+
+        if (totalActiveTasks >= 3) {
+             return res.status(409).json({ message: `L'agent ${newAgent.firstName} a déjà atteint sa charge maximale (3 tâches).` });
         }
 
         order.previousAgent = order.agent; // Historique

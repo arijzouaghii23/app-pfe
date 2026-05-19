@@ -4,6 +4,7 @@ import {
   Eye, Search, AlertCircle, X, FileText, CheckCircle2,
   MapPinOff, Loader2, Image as ImageIcon
 } from 'lucide-react';
+import { PatrolCard } from '../componets/PatrolCard';
 
 const API = 'http://localhost:5000';
 const getToken = () => localStorage.getItem('token');
@@ -34,12 +35,9 @@ function ReportModal({ order, onClose }) {
     const fetchReports = async () => {
       setLoading(true);
       try {
-        // On récupère les rapports liés à cet ordre via le sectorId et source agent
         const res = await authFetch(`/api/reports?sectorId=${order.sectorId?._id}&source=agent`);
         if (res.ok) {
           const data = await res.json();
-          // On filtre les rapports créés pendant cette patrouille (même jour que la clôture)
-          // ou plus simplement : tous les rapports de l'agent pour ce secteur
           const userId = JSON.parse(localStorage.getItem('user') || '{}')?.id;
           const filtered = data.filter(r =>
             r.sectorId === order.sectorId?._id ||
@@ -66,7 +64,7 @@ function ReportModal({ order, onClose }) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+      className="fixed inset-0 z-[99999] flex items-end sm:items-center justify-center p-0 sm:p-4"
       style={{ backgroundColor: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(4px)' }}
       onClick={onClose}
     >
@@ -75,98 +73,68 @@ function ReportModal({ order, onClose }) {
         style={{ maxHeight: '85vh' }}
         onClick={e => e.stopPropagation()}
       >
-        {/* Header modale */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
           <div>
             <h3 className="font-black text-slate-800 text-base flex items-center gap-2">
-              <FileText size={16} className="text-indigo-500" />
+              <FileText size={16} className="text-violet-500" />
               Rapport de patrouille
             </h3>
             <p className="text-xs text-slate-400 font-semibold mt-0.5">
               {order.sectorId?.name || 'Secteur inconnu'} · {formatDate(order.updatedAt)}
             </p>
           </div>
-          <button
-            onClick={onClose}
-            className="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 transition-all"
-          >
+          <button onClick={onClose} className="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 transition-all">
             <X size={16} />
           </button>
         </div>
 
-        {/* Contenu scrollable */}
         <div className="overflow-y-auto p-6 space-y-4" style={{ maxHeight: 'calc(85vh - 80px)' }}>
           {loading ? (
             <div className="flex flex-col items-center justify-center py-10 gap-3">
-              <Loader2 size={28} className="animate-spin text-indigo-400" />
+              <Loader2 size={28} className="animate-spin text-violet-400" />
               <p className="text-slate-400 text-xs font-semibold">Chargement des anomalies...</p>
             </div>
           ) : reports.length === 0 ? (
             <div className="flex flex-col items-center py-10 text-center gap-3">
               <MapPinOff size={32} className="text-slate-300" />
               <p className="text-slate-500 font-bold text-sm">Aucune anomalie signalée</p>
-              <p className="text-slate-400 text-xs">Aucun signalement n'a été soumis lors de cette patrouille.</p>
             </div>
           ) : (
             <>
-              {/* Résumé */}
-              <div className="bg-indigo-50 rounded-2xl p-4 flex items-center gap-3 border border-indigo-100">
-                <CheckCircle2 size={20} className="text-indigo-500 flex-shrink-0" />
+              <div className="bg-violet-50 rounded-2xl p-4 flex items-center gap-3 border border-violet-100">
+                <CheckCircle2 size={20} className="text-violet-500 flex-shrink-0" />
                 <div>
-                  <p className="text-xs font-black text-indigo-700">{reports.length} anomalie{reports.length > 1 ? 's' : ''} détectée{reports.length > 1 ? 's' : ''}</p>
-                  <p className="text-[10px] text-indigo-400 font-semibold">Signalements soumis lors de cette patrouille</p>
+                  <p className="text-xs font-black text-violet-700">{reports.length} anomalie{reports.length > 1 ? 's' : ''} détectée{reports.length > 1 ? 's' : ''}</p>
+                  <p className="text-[10px] text-violet-400 font-semibold">Signalements soumis lors de cette patrouille</p>
                 </div>
               </div>
 
-              {/* Liste des rapports */}
               {reports.map((report, idx) => {
                 const st = statusLabel[report.status] || { label: report.status, cls: 'bg-slate-50 text-slate-500 border-slate-100' };
                 return (
                   <div key={report._id} className="bg-white border border-slate-100 rounded-2xl overflow-hidden shadow-sm">
-                    {/* Images */}
                     {report.images?.length > 0 && (
                       <div className="flex gap-1 p-2 bg-slate-50">
                         {report.images.slice(0, 3).map((img, i) => (
-                          <img
-                            key={i}
-                            src={img.startsWith('http') ? img : `${API}${img}`}
-                            alt={`Anomalie ${idx + 1}`}
-                            className="w-20 h-16 object-cover rounded-xl border border-slate-100"
-                            onError={e => { e.target.style.display = 'none'; }}
-                          />
+                          <img key={i} src={img.startsWith('http') ? img : `${API}${img}`} alt={`Anomalie ${idx + 1}`} className="w-20 h-16 object-cover rounded-xl border border-slate-100" onError={e => { e.target.style.display = 'none'; }} />
                         ))}
-                        {report.images.length > 3 && (
-                          <div className="w-20 h-16 bg-slate-200 rounded-xl flex items-center justify-center text-xs font-black text-slate-400">
-                            +{report.images.length - 3}
-                          </div>
-                        )}
                       </div>
                     )}
-
                     <div className="p-4">
                       <div className="flex items-start justify-between mb-2">
                         <p className="text-xs font-black text-slate-600">Anomalie #{idx + 1}</p>
-                        <span className={`text-[10px] font-black px-2 py-0.5 rounded-lg border ${st.cls}`}>
-                          {st.label}
-                        </span>
+                        <span className={`text-[10px] font-black px-2 py-0.5 rounded-lg border ${st.cls}`}>{st.label}</span>
                       </div>
-
                       {report.address && (
                         <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium mb-2">
                           <MapIcon size={11} className="text-slate-300 flex-shrink-0" />
                           {report.address}
                         </div>
                       )}
-
                       {report.description && (
-                        <p className="text-xs text-slate-600 bg-slate-50 p-2.5 rounded-xl border border-slate-100 leading-relaxed">
-                          {report.description}
-                        </p>
+                        <p className="text-xs text-slate-600 bg-slate-50 p-2.5 rounded-xl border border-slate-100 leading-relaxed">{report.description}</p>
                       )}
-
-                      <p className="text-[10px] text-slate-400 font-semibold mt-2">
-                        Soumis le {formatDate(report.createdAt)}
-                      </p>
+                      <p className="text-[10px] text-slate-400 font-semibold mt-2">Soumis le {formatDate(report.createdAt)}</p>
                     </div>
                   </div>
                 );
@@ -182,17 +150,27 @@ function ReportModal({ order, onClose }) {
 // ── PatrolHistory ──────────────────────────────────────────────────────────────
 export default function PatrolHistory() {
   const [historyFiles, setHistoryFiles] = useState([]);
+  const [completedMissions, setCompletedMissions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedOrder, setSelectedOrder] = useState(null); // Modal state
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [activeTab, setActiveTab] = useState('patrols');
 
   const fetchHistory = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await authFetch('/api/inspection-orders/mine');
-      if (res.ok) {
-        const fullData = await res.json();
+      const [resOrders, resMissions] = await Promise.all([
+        authFetch('/api/inspection-orders/mine'),
+        authFetch('/api/missions')
+      ]);
+
+      if (resOrders.ok) {
+        const fullData = await resOrders.json();
         setHistoryFiles(fullData.filter(o => o.status === 'done'));
+      }
+      if (resMissions.ok) {
+        const fullMissions = await resMissions.json();
+        setCompletedMissions(fullMissions.filter(m => m.status === 'COMPLETED'));
       }
     } catch (err) {
       console.error(err);
@@ -209,92 +187,119 @@ export default function PatrolHistory() {
       || (item.sectorId?.city || '').toLowerCase().includes(term);
   });
 
+  const filteredMissions = completedMissions.filter(item => {
+    const term = searchTerm.toLowerCase();
+    return (item.sectorId?.name || '').toLowerCase().includes(term)
+      || (item.city || '').toLowerCase().includes(term);
+  });
+
+  const handleDownloadPDF = async (reportId) => {
+    try {
+        const res = await fetch(`${API}/api/reports/${reportId}/pdf`, {
+            headers: { 'Authorization': `Bearer ${getToken()}` }
+        });
+        if (!res.ok) throw new Error("Erreur lors du téléchargement");
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `rapport_mission_${reportId}.pdf`;
+        a.click();
+    } catch (err) {
+        console.error(err);
+        alert("Impossible de télécharger le rapport PDF.");
+    }
+  };
+
   return (
     <>
-      <div className="max-w-lg mx-auto px-4 py-6 mb-20">
-        <div className="flex items-center justify-between mb-6">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fade-in-up mb-20">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
           <div>
-            <h2 className="font-black text-slate-800 text-xl flex items-center gap-2">
-              <History size={20} className="text-indigo-500" />
-              Historique
-            </h2>
-            <p className="text-slate-400 text-xs mt-1 font-medium">Vos patrouilles achevées</p>
+            <p className="text-sm font-bold text-violet-600 tracking-wider uppercase mb-1">ARCHIVES</p>
+            <h1 className="text-3xl font-black text-slate-900 flex items-center gap-2">
+              Historique des Opérations
+            </h1>
+            <p className="text-slate-500 mt-2">Vos patrouilles et réparations achevées</p>
           </div>
         </div>
 
-        <div className="relative mb-6">
+        {/* Toggle Onglets */}
+        <div className="flex bg-slate-100 p-1 rounded-2xl mb-6 max-w-sm">
+            <button
+                onClick={() => setActiveTab('patrols')}
+                className={`flex-1 py-2.5 text-xs font-black rounded-xl transition-all ${activeTab === 'patrols' ? 'bg-white text-violet-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+                Patrouilles
+            </button>
+            <button
+                onClick={() => setActiveTab('repairs')}
+                className={`flex-1 py-2.5 text-xs font-black rounded-xl transition-all ${activeTab === 'repairs' ? 'bg-white text-violet-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+                Réparations
+            </button>
+        </div>
+
+        <div className="relative mb-8 max-w-xl">
           <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
             placeholder="Rechercher par zone, ville..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-white border border-slate-200 rounded-2xl pl-11 pr-4 py-3.5 text-sm font-medium text-slate-700 outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-50 transition-all shadow-sm"
+            className="w-full bg-white border border-slate-200 rounded-2xl pl-11 pr-4 py-3.5 text-sm font-medium text-slate-700 outline-none focus:border-violet-400 focus:ring-4 focus:ring-violet-50 transition-all shadow-sm"
           />
         </div>
 
         {loading ? (
-          <div className="flex justify-center py-10">
-            <div className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
-          </div>
-        ) : filteredHistory.length === 0 ? (
-          <div className="bg-white rounded-3xl p-8 text-center border border-slate-100 shadow-sm">
-            <AlertCircle size={32} className="text-slate-300 mx-auto mb-3" />
-            <p className="text-slate-500 font-bold text-sm">Aucun historique trouvé</p>
-            <p className="text-slate-400 text-xs mt-1">Vous n'avez pas encore achevé de patrouille.</p>
-          </div>
-        ) : (
-          <div className="space-y-4">
+          <div className="flex justify-center py-12"><div className="w-8 h-8 border-4 border-violet-200 border-t-violet-600 rounded-full animate-spin" /></div>
+        ) : activeTab === 'patrols' ? (
+          filteredHistory.length === 0 ? (
+            <div className="bg-white rounded-2xl border border-slate-100 p-12 text-center shadow-sm max-w-xl mx-auto">
+              <AlertCircle className="w-12 h-12 text-slate-300 mx-auto mb-4" />
+              <h3 className="text-lg font-bold text-slate-900 mb-1">Aucun historique trouvé</h3>
+              <p className="text-slate-500 text-sm">Vous n'avez pas encore achevé de patrouille.</p>
+            </div>
+          ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredHistory.map(item => (
-              <div key={item._id} className="bg-white rounded-3xl p-5 border border-slate-100 shadow-sm">
-                <div className="flex items-start justify-between mb-3">
-                  <div>
-                    <h3 className="font-black text-slate-800 flex items-center gap-1.5 text-sm">
-                      <MapIcon size={14} className="text-indigo-400" />
-                      {item.sectorId?.name || 'Secteur inconnu'}
-                    </h3>
-                    <p className="text-xs text-slate-400 font-semibold ml-5">{item.sectorId?.city || 'Ville non spécifiée'}</p>
-                  </div>
-                  <span className="bg-emerald-50 text-emerald-600 px-2.5 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider border border-emerald-100">
-                    Terminé
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-4 mb-4 mt-4 bg-slate-50 rounded-2xl p-3">
-                  <div className="flex-1">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Date de réalisation</p>
-                    <p className="text-sm font-bold text-slate-700 flex items-center gap-1.5">
-                      <Calendar size={12} className="text-slate-400" />
-                      {formatDate(item.updatedAt)}
-                    </p>
-                  </div>
-                </div>
-
-                {item.instructions && (
-                  <div className="mb-4">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
-                      <ClipboardList size={12} /> Instructions d'origine
-                    </p>
-                    <p className="text-xs text-slate-600 leading-relaxed font-medium bg-slate-50 p-3 rounded-xl border border-slate-100">
-                      {item.instructions}
-                    </p>
-                  </div>
-                )}
-
-                <button
-                  onClick={() => setSelectedOrder(item)}
-                  className="w-full bg-slate-900 hover:bg-slate-700 text-white py-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 active:scale-95"
-                >
-                  <Eye size={14} />
-                  Voir le rapport associé
-                </button>
-              </div>
+              <PatrolCard 
+                key={item._id}
+                location={item.sectorId?.name || 'Zone non spécifiée'}
+                city={item.sectorId?.city || 'Ville non spécifiée'}
+                dateLimite={formatDate(item.updatedAt)} // completed date
+                dateRecu={formatDate(item.createdAt)}
+                status="completee"
+                onAction={() => setSelectedOrder(item)}
+              />
             ))}
           </div>
+          )
+        ) : (
+          filteredMissions.length === 0 ? (
+            <div className="bg-white rounded-2xl border border-slate-100 p-12 text-center shadow-sm max-w-xl mx-auto">
+              <AlertCircle className="w-12 h-12 text-slate-300 mx-auto mb-4" />
+              <h3 className="text-lg font-bold text-slate-900 mb-1">Aucune réparation trouvée</h3>
+              <p className="text-slate-500 text-sm">Vous n'avez pas encore achevé de mission de réparation.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredMissions.map(item => (
+                <PatrolCard 
+                  key={item._id}
+                  location={item.sectorId?.name || 'Zone non spécifiée'}
+                  city={item.city || 'Ville non spécifiée'}
+                  dateLimite={formatDate(item.updatedAt)} // completed date
+                  dateRecu={formatDate(item.createdAt)}
+                  status="completee"
+                  onAction={() => handleDownloadPDF(item._id)}
+                />
+              ))}
+            </div>
+          )
         )}
       </div>
 
-      {/* Modale */}
       {selectedOrder && (
         <ReportModal
           order={selectedOrder}

@@ -53,7 +53,27 @@ const reportSchema = new mongoose.Schema({
     type: {
       estUneRoute: Boolean,
       estDegradee: Boolean,
-      scoreConfiance: Number
+      scoreConfiance: Number,
+      // Nouveaux champs pour YOLOv8 et le Dictionnaire Métier
+      yoloClassId: Number,
+      yoloClassName: String,
+      yoloConfidence: Number,
+      businessRecommendation: String,
+      annotatedImagePath: String // Stockage du chemin, pas de Base64
+    },
+    default: null
+  },
+  expertValidation: {
+    type: {
+      correctedDegradationType: String,
+      correctedRecommendation: String,
+      correctionExpertDateAt: Date,
+      signatureBase64: String,
+      validatedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+      },
+      validatedAt: Date
     },
     default: null
   },
@@ -64,6 +84,23 @@ const reportSchema = new mongoose.Schema({
   assignedTo: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
+    default: null
+  },
+  mission: {
+    type: {
+      startDate: Date,
+      estimatedEndDate: Date,
+      priority: {
+        type: String,
+        enum: ['Normale', 'Haute', 'Urgente'],
+        default: 'Normale'
+      },
+      history: [{
+        date: { type: Date, default: Date.now },
+        comment: String,
+        imagePath: String
+      }]
+    },
     default: null
   }
 }, {

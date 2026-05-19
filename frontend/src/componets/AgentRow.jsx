@@ -1,69 +1,56 @@
 import React from 'react';
-import { Check, MapPin, XCircle } from 'lucide-react';
-import StatusBadge from './StatusBadge';
+import { Check, X, MapPin, Clock } from 'lucide-react';
 
-const AgentRow = ({ agent, onApprove, onReject, sectors = [] }) => {
-  // Approbation directe sans popup
-  const handleApprove = () => {
-    // Si agent.assignedCity est vide, l'AdminDashboard (handleApprove) utilisera sectors[0]
-    onApprove(agent._id, agent.assignedCity || null);
-  };
-
-  const handleReject = () => {
-    if (onReject) onReject(agent._id);
-  };
+const AgentRow = ({ agent, onApprove, onReject }) => {
+  const initials = `${agent.firstName?.charAt(0) || ''}${agent.name?.charAt(0) || ''}`.toUpperCase();
 
   return (
-    <tr>
-      {/* Identité */}
-      <td>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <div style={{
-            height: '40px', width: '40px', borderRadius: '50%',
-            backgroundColor: '#f1f5f9', display: 'flex', alignItems: 'center',
-            justifyContent: 'center', color: '#64748b', fontWeight: 'bold',
-            border: '1px solid #e2e8f0', marginRight: '12px'
-          }}>
-            {agent.name?.charAt(0)}{agent.firstName?.charAt(0) || ''}
+    <tr className="group hover:bg-violet-50/40 transition-colors duration-200">
+      {/* Identity */}
+      <td className="px-6 py-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm shadow-md shadow-violet-500/20 flex-shrink-0">
+            {initials || '?'}
           </div>
           <div>
-            <div style={{ fontSize: '0.875rem', fontWeight: '600', color: '#0f172a' }}>
-              {agent.firstName} {agent.name}
-            </div>
-            <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{agent.email}</div>
+            <p className="text-sm font-semibold text-slate-800">{agent.firstName} {agent.name}</p>
+            <p className="text-xs text-slate-400">{agent.email}</p>
           </div>
         </div>
       </td>
 
-      {/* Statut */}
-      <td><StatusBadge status={agent.status} /></td>
+      {/* Status */}
+      <td className="px-6 py-4">
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-700 text-xs font-semibold">
+          <Clock className="w-3 h-3" />
+          En attente
+        </span>
+      </td>
 
-      {/* Ville assignée */}
-      <td>
-        <div className="flex-center" style={{ fontSize: '0.875rem', color: '#475569' }}>
-          <MapPin size={14} style={{ marginRight: '8px', color: '#94a3b8' }} />
-          {agent.assignedCity || <span style={{ color: '#cbd5e1', fontStyle: 'italic' }}>Affectation automatique en cours</span>}
+      {/* City */}
+      <td className="px-6 py-4">
+        <div className="flex items-center gap-1.5 text-sm text-slate-500">
+          <MapPin className="w-3.5 h-3.5 text-slate-300" />
+          <span className="italic text-slate-400 text-xs">Auto-assignée</span>
         </div>
       </td>
 
       {/* Actions */}
-      <td style={{ textAlign: 'right' }}>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+      <td className="px-6 py-4">
+        <div className="flex items-center justify-end gap-2">
           <button
-            onClick={handleApprove}
-            className="btn btn-success"
-            style={{ padding: '8px 12px' }}
-            title="Approuver l'Agent"
+            onClick={() => onApprove(agent._id)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold hover:bg-emerald-500 hover:text-white hover:border-emerald-500 hover:shadow-md hover:shadow-emerald-500/25 transition-all duration-200 active:scale-95"
           >
-            <Check size={16} />
+            <Check className="w-3.5 h-3.5" />
+            Approuver
           </button>
           <button
-            onClick={handleReject}
-            className="btn"
-            style={{ border: '1px solid #fee2e2', backgroundColor: '#fef2f2', color: '#ef4444', padding: '8px 12px' }}
-            title="Rejeter et Supprimer"
+            onClick={() => onReject(agent._id)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-50 border border-red-200 text-red-500 text-xs font-semibold hover:bg-red-500 hover:text-white hover:border-red-500 hover:shadow-md hover:shadow-red-500/25 transition-all duration-200 active:scale-95"
           >
-            <XCircle size={16} />
+            <X className="w-3.5 h-3.5" />
+            Rejeter
           </button>
         </div>
       </td>

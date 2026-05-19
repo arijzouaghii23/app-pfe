@@ -8,6 +8,8 @@ import AdminDashboard from './pages/AdminDashboard';
 import MapPage from './pages/MapPage';
 import AgentDashboard from './pages/AgentDashboard';
 import ExpertDashboard from './pages/ExpertDashboard';
+import ExpertValidations from './pages/ExpertValidations';
+import ExpertProfile from './pages/ExpertProfile';
 import ChangePassword from './pages/ChangePassword';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
@@ -32,6 +34,8 @@ function App() {
           <Route path="/map" element={<MapPage />} />
           <Route path="/agent" element={<AgentDashboard />} />
           <Route path="/expert" element={<ExpertDashboard />} />
+          <Route path="/expert/validations" element={<ExpertValidations />} />
+          <Route path="/expert/profile" element={<ExpertProfile />} />
           <Route path="/change-password" element={<ChangePassword />} />
           <Route path="/dashboard" element={<Navigate to="/map" />} />
         </Route>

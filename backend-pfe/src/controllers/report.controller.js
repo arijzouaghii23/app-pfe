@@ -3,7 +3,10 @@ const Sector = require('../models/Sector');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const { analyzeImageWithGemini } = require('../services/aiService');
+const User = require('../models/User');
+const { analyzeImageWithGemini, analyzeImageWithYolo } = require('../services/aiService');
+const { generateReportPDF } = require('../services/pdfService');
+const { sendMissionEmail } = require('../services/mailer');
 const axios = require('axios'); // For Nominatim requests if fetch is not available
 
 async function fetchAddressFromCoords(lat, lon) {
@@ -102,7 +105,7 @@ exports.createReport = (req, res) => {
             if (!sector) {
                 console.warn(`[GEO] Aucun secteur trouvé pour [${lon}, ${lat}]. Zone non couverte.`);
                 // Nettoyer les fichiers uploadés
-                req.files.forEach(f => { try { fs.unlinkSync(f.path); } catch (_) {} });
+                req.files.forEach(f => { try { fs.unlinkSync(f.path); } catch (_) { } });
                 return res.status(400).json({
                     message: "Zone non couverte : les coordonnées ne correspondent à aucun secteur surveillé."
                 });
@@ -139,6 +142,44 @@ exports.createReport = (req, res) => {
                 console.log("[AGENT] Soumission directe de l'agent → PENDING_EXPERT automatique.");
             }
 
+            // ── Étape 4.5 : ANALYSE YOLOv8 (Métier) ──
+            let finalAiResult = aiResult;
+
+            // Si le rapport est valide (agent ou citoyen validé par Gemini), on fait l'analyse métier YOLO
+            if (status === 'PENDING_EXPERT') {
+                console.log("[YOLO] Appel au microservice Python pour la classification métier...");
+                const absolutePath = path.resolve(req.files[0].path);
+                try {
+                    const yoloData = await analyzeImageWithYolo(absolutePath);
+
+                    let annotatedImagePath = null;
+                    if (yoloData.annotatedImageBase64) {
+                        // RÈGLE ARCHITECTURALE : Sauvegarder en tant que fichier, pas en Base64 dans la DB
+                        const annotatedDir = path.join(__dirname, '../../uploads/annotated');
+                        if (!fs.existsSync(annotatedDir)) {
+                            fs.mkdirSync(annotatedDir, { recursive: true });
+                        }
+                        const fileName = `annotated-${Date.now()}-${Math.round(Math.random() * 1E9)}.jpg`;
+                        const filePath = path.join(annotatedDir, fileName);
+                        fs.writeFileSync(filePath, yoloData.annotatedImageBase64, 'base64');
+                        annotatedImagePath = `/uploads/annotated/${fileName}`;
+                    }
+
+                    // Fusionner les résultats
+                    finalAiResult = {
+                        ...(aiResult || {}),
+                        yoloClassId: yoloData.yoloClassId,
+                        yoloClassName: yoloData.yoloClassName,
+                        yoloConfidence: yoloData.yoloConfidence,
+                        businessRecommendation: yoloData.businessRecommendation,
+                        annotatedImagePath: annotatedImagePath
+                    };
+
+                } catch (yoloError) {
+                    console.error("[YOLO ERROR] Impossible d'analyser l'image avec YOLO :", yoloError.message);
+                }
+            }
+
             // ── Étape 5 : SAUVEGARDE — avec sectorId et assignedCity ──
             const imagePaths = req.files.map(f => `/uploads/${f.filename}`);
 
@@ -163,7 +204,7 @@ exports.createReport = (req, res) => {
                 status,
                 source,
                 owner: ownerId,
-                aiResult
+                aiResult: finalAiResult
             });
 
             console.log(`[SUCCESS] Rapport créé. ID: ${newReport._id} | Statut: ${status} | Secteur: ${sector.name}`);
@@ -202,10 +243,26 @@ exports.getMyReports = async (req, res) => {
 // Récupérer les missions affectées à l'agent connecté
 exports.getMyMissions = async (req, res) => {
     try {
-        const missions = await Report.find({ assignedTo: req.user.id }).sort({ updatedAt: -1 });
+        const missions = await Report.find({ assignedTo: req.user.id })
+            .populate('sectorId', 'name city')
+            .sort({ updatedAt: -1 });
         res.status(200).json(missions);
     } catch (error) {
         res.status(500).json({ message: "Erreur récupération missions." });
+    }
+};
+
+// Récupérer TOUTES les missions (pour Expert/Admin)
+exports.getAllMissions = async (req, res) => {
+    try {
+        // Les missions sont les rapports qui ont un agent assigné
+        const missions = await Report.find({ assignedTo: { $exists: true, $ne: null } })
+            .populate('assignedTo', 'name firstName email')
+            .populate('sectorId', 'name city')
+            .sort({ updatedAt: -1 });
+        res.status(200).json(missions);
+    } catch (error) {
+        res.status(500).json({ message: "Erreur récupération de toutes les missions." });
     }
 };
 
@@ -213,7 +270,7 @@ exports.getMyMissions = async (req, res) => {
 exports.updateReportStatus = async (req, res) => {
     try {
         const { status, agentObservations } = req.body;
-        
+
         const report = await Report.findById(req.params.id);
         if (!report) {
             return res.status(404).json({ message: "Rapport introuvable." });
@@ -224,8 +281,8 @@ exports.updateReportStatus = async (req, res) => {
         }
 
         if (agentObservations) {
-            report.description = report.description 
-                ? `${report.description}\n\nObs Agent: ${agentObservations}` 
+            report.description = report.description
+                ? `${report.description}\n\nObs Agent: ${agentObservations}`
                 : `Obs Agent: ${agentObservations}`;
         }
 
@@ -240,19 +297,244 @@ exports.updateReportStatus = async (req, res) => {
 // Lister les rapports avec filtres (sectorId, source, owner) — pour historique patrouille
 exports.getReports = async (req, res) => {
     try {
-        const { sectorId, source, owner } = req.query;
+        const { sectorId, source, owner, status } = req.query;
         const filter = {};
         if (sectorId) filter.sectorId = sectorId;
-        if (source)   filter.source   = source;
-        if (owner)    filter.owner    = owner;
+        if (source) filter.source = source;
+        if (owner) filter.owner = owner;
+        if (status) filter.status = status;
 
         const reports = await Report.find(filter)
             .sort({ createdAt: -1 })
-            .populate('sectorId', 'name city');
+            .populate('sectorId', 'name city')
+            .populate('owner', 'name firstName email')
+            .populate('assignedTo', 'name firstName email');
 
         res.status(200).json(reports);
     } catch (error) {
         console.error('[getReports] Erreur :', error);
         res.status(500).json({ message: "Erreur récupération des rapports." });
     }
+};
+
+// Générer et télécharger le rapport PDF
+exports.downloadReportPdf = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const report = await Report.findById(id).populate('sectorId', 'name city').populate('owner', 'name firstName email').populate('assignedTo', 'name firstName email');
+
+        if (!report) {
+            return res.status(404).json({ message: "Rapport introuvable." });
+        }
+
+        const { generateReportPDF } = require('../services/pdfService');
+        const pdfBuffer = await generateReportPDF(report);
+
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename=rapport-inspection-${id}.pdf`);
+        res.setHeader('Content-Length', pdfBuffer.length);
+
+        res.end(pdfBuffer);
+
+    } catch (error) {
+        res.status(500).json({ message: "Erreur lors de la génération du PDF." });
+    }
+};
+
+// ── CORRECTION DU RAPPORT PAR L'EXPERT ──
+exports.expertCorrectReport = async (req, res) => {
+    console.log("🔥 ROUTE CORRECTION ATTEINTE POUR L'ID :", req.params.id);
+    console.log("Contenu du body :", req.body);
+
+    try {
+        const { correctedDegradationType, correctedRecommendation } = req.body;
+        const report = await Report.findById(req.params.id);
+
+        if (!report) {
+            return res.status(404).json({ message: "Rapport introuvable." });
+        }
+
+        if (!report.expertValidation) {
+            report.expertValidation = {};
+        }
+
+        report.expertValidation.correctedDegradationType = correctedDegradationType;
+        report.expertValidation.correctedRecommendation = correctedRecommendation;
+        report.expertValidation.correctionExpertDateAt = new Date();
+
+        await report.save();
+        res.status(200).json({ message: "Données du rapport corrigées avec succès.", report });
+    } catch (error) {
+        console.error('[expertCorrectReport] Erreur :', error);
+        res.status(500).json({ message: "Erreur lors de la correction du rapport." });
+    }
+};
+
+// ── VALIDATION DU RAPPORT AVEC SIGNATURE ──
+exports.expertValidateReport = async (req, res) => {
+    try {
+        const { signatureBase64 } = req.body;
+        const report = await Report.findById(req.params.id);
+
+        if (!report) {
+            return res.status(404).json({ message: "Rapport introuvable." });
+        }
+
+        if (!report.expertValidation) {
+            report.expertValidation = {};
+        }
+
+        report.expertValidation.signatureBase64 = signatureBase64;
+        report.expertValidation.validatedBy = req.user.id;
+        report.expertValidation.validatedAt = new Date();
+        report.status = 'VALIDATED';
+
+        await report.save();
+        res.status(200).json({ message: "Rapport officiellement validé et signé.", report });
+    } catch (error) {
+        console.error('🔥 Erreur Backend Validation :', error);
+        res.status(500).json({ message: error.message || "Erreur lors de la validation du rapport." });
+    }
+};
+
+// ── CREATION DE MISSION ──
+exports.createMission = async (req, res) => {
+    console.log("🔥 ROUTE POST /api/missions ATTEINTE");
+    console.log("Payload reçu:", req.body);
+    try {
+        const { reportId, agentId, priority, startDate, estimatedEndDate } = req.body;
+
+        if (!reportId || !agentId) {
+            return res.status(400).json({ message: "Champs requis manquants (reportId, agentId)." });
+        }
+
+        const report = await Report.findById(reportId).populate('sectorId', 'name city');
+        if (!report) {
+            return res.status(404).json({ message: "Rapport introuvable." });
+        }
+
+        const agent = await User.findById(agentId);
+        if (!agent) {
+            return res.status(404).json({ message: "Agent introuvable." });
+        }
+
+        // Mise à jour du rapport
+        report.assignedTo = agentId;
+        report.status = 'IN_PROGRESS';
+        report.mission = {
+            startDate: startDate ? new Date(startDate) : undefined,
+            estimatedEndDate: estimatedEndDate ? new Date(estimatedEndDate) : undefined,
+            priority: priority || 'Normale'
+        };
+
+        await report.save();
+
+        // Générer le PDF
+        const pdfBuffer = await generateReportPDF(report);
+
+        // Envoyer l'email
+        try {
+            await sendMissionEmail(agent, report, pdfBuffer);
+        } catch (mailErr) {
+            console.error('[MAIL] Erreur envoi email de mission :', mailErr.message);
+        }
+
+        res.status(201).json({ message: "Mission créée et assignée avec succès.", report });
+    } catch (error) {
+        console.error('[createMission] Erreur :', error);
+        res.status(500).json({ message: "Erreur lors de la création de la mission.", error: error.message });
+    }
+};
+
+// ── AJOUTER UN AVANCEMENT DE MISSION (Statut IN_PROGRESS) ──
+exports.addMissionProgress = (req, res) => {
+    upload(req, res, async (err) => {
+        if (err) {
+            return res.status(400).json({ message: "Erreur d'upload", error: err.message });
+        }
+        try {
+            const reportId = req.params.id;
+            const { comment } = req.body;
+
+            const report = await Report.findById(reportId);
+            if (!report) return res.status(404).json({ message: "Mission introuvable." });
+
+            // On s'assure que mission et history existent
+            if (!report.mission) report.mission = {};
+            if (!report.mission.history) report.mission.history = [];
+
+            let imagePath = null;
+            if (req.files && req.files.length > 0) {
+                imagePath = `/uploads/${req.files[0].filename}`;
+            }
+
+            report.mission.history.push({
+                date: new Date(),
+                comment: comment || '',
+                imagePath: imagePath
+            });
+
+            await report.save();
+            res.status(200).json({ message: "Avancement ajouté avec succès.", report });
+        } catch (error) {
+            console.error("[addMissionProgress] Erreur :", error);
+            res.status(500).json({ message: "Erreur serveur.", error: error.message });
+        }
+    });
+};
+
+// ── CLOTURER LA MISSION (Statut COMPLETED) ──
+exports.completeMission = (req, res) => {
+    upload(req, res, async (err) => {
+        if (err) {
+            return res.status(400).json({ message: "Erreur d'upload", error: err.message });
+        }
+        try {
+            const reportId = req.params.id;
+            const { comment } = req.body;
+
+            const report = await Report.findById(reportId).populate('sectorId', 'name city').populate('assignedTo', 'name email');
+            if (!report) return res.status(404).json({ message: "Mission introuvable." });
+
+            if (!report.mission) report.mission = {};
+            if (!report.mission.history) report.mission.history = [];
+
+            let imagePath = null;
+            if (req.files && req.files.length > 0) {
+                imagePath = `/uploads/${req.files[0].filename}`;
+            }
+
+            // Ajouter le dernier rapport de clôture
+            report.mission.history.push({
+                date: new Date(),
+                comment: comment || 'Clôture de la mission',
+                imagePath: imagePath
+            });
+
+            // Mettre à jour le statut
+            report.status = 'COMPLETED';
+
+            await report.save();
+
+            // Mettre à jour la date de dernière inspection du secteur (logique métier SIG)
+            if (report.sectorId) {
+                await Sector.findByIdAndUpdate(report.sectorId._id, {
+                    lastInspectionDate: new Date()
+                });
+            }
+
+            // Regénérer le PDF final avec l'historique
+            try {
+                // generateReportPDF doit être mis à jour pour supporter l'historique
+                await generateReportPDF(report);
+            } catch (pdfErr) {
+                console.error("[PDF] Erreur lors de la régénération du PDF :", pdfErr.message);
+            }
+
+            res.status(200).json({ message: "Mission clôturée avec succès.", report });
+        } catch (error) {
+            console.error("[completeMission] Erreur :", error);
+            res.status(500).json({ message: "Erreur serveur.", error: error.message });
+        }
+    });
 };

@@ -13,7 +13,8 @@ const {
   approveAgent,
   rejectAgent,
   getStatus,
-  updateProfilePassword
+  updateProfilePassword,
+  getExperts
 } = require("../controllers/auth.controller");
 const { protect, isAdmin } = require("../middlewares/auth.middleware");
 
@@ -33,6 +34,7 @@ router.get("/status", protect, getStatus);
 
 // Routes Admin
 router.get("/pending-agents", protect, isAdmin, getPendingAgents);
+router.get("/experts", protect, isAdmin, getExperts);
 router.put("/approve-agent/:id", protect, isAdmin, approveAgent);
 router.delete("/reject-agent/:id", protect, isAdmin, rejectAgent);
 

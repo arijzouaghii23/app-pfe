@@ -3,6 +3,10 @@ const fs = require("fs");
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
+const { getBusinessData } = require("../utils/businessDictionary");
+const axios = require('axios');
+const FormData = require('form-data');
+
 const analyzeImageWithGemini = async (filePath) => {
   try {
     const imageBuffer = fs.readFileSync(filePath);
@@ -49,4 +53,54 @@ const analyzeImageWithGemini = async (filePath) => {
   }
 };
 
-module.exports = { analyzeImageWithGemini };
+/**
+ * Appelle le microservice Python YOLOv8 pour détecter la dégradation.
+ * @param {string} filePath - Chemin absolu vers l'image.
+ * @returns {Promise<Object>} - Les données de détection et les recommandations métier.
+ */
+const analyzeImageWithYolo = async (filePath) => {
+  try {
+    const formData = new FormData();
+    formData.append('file', fs.createReadStream(filePath));
+
+    // Appel à l'API Python
+    const response = await axios.post('http://localhost:8000/detect', formData, {
+      headers: {
+        ...formData.getHeaders(),
+      },
+    });
+
+    const yoloResult = response.data;
+
+    // Si aucune anomalie détectée par YOLO
+    if (!yoloResult.detected) {
+      return {
+        detected: false,
+        yoloClassId: null,
+        yoloClassName: "Aucune dégradation",
+        yoloConfidence: 0,
+        businessRecommendation: "Aucune intervention requise.",
+        annotatedImageBase64: null
+      };
+    }
+
+    // Récupérer les données du dictionnaire métier
+    const businessData = getBusinessData(yoloResult.class_id);
+
+    return {
+      detected: true,
+      yoloClassId: yoloResult.class_id,
+      yoloClassName: businessData.name, // Nom issu du dico métier (ex: "Nid-de-poule")
+      businessDefinition: businessData.definition,
+      businessRecommendation: businessData.recommendation, // Recommandation métier
+      yoloConfidence: yoloResult.confidence,
+      annotatedImageBase64: yoloResult.annotated_image_base64 // Sera sauvegardé sur disque par le controller
+    };
+
+  } catch (error) {
+    console.error("[YOLO SERVICE ERROR] Impossible de joindre l'API Python :", error.message);
+    throw new Error("Erreur lors de l'analyse YOLO");
+  }
+};
+
+module.exports = { analyzeImageWithGemini, analyzeImageWithYolo };

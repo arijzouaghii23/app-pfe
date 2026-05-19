@@ -2,6 +2,7 @@ const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
+const Report = require("../models/Report");
 const { sendVerificationEmail, sendResetPasswordEmail } = require("../services/mailer");
 const AuthService = require("../services/authService");
 // REGISTER
@@ -15,6 +16,15 @@ exports.register = async (req, res) => {
     const token = crypto.randomBytes(32).toString("hex");
     const userRole = role || "agent";
 
+    let assignedCity = null;
+    if (userRole === 'expert') {
+      const Sector = require("../models/Sector");
+      const firstSector = await Sector.findOne({}).select('city');
+      if (firstSector && firstSector.city) {
+        assignedCity = firstSector.city;
+      }
+    }
+
     const user = await User.create({
       name,
       firstName,
@@ -23,7 +33,7 @@ exports.register = async (req, res) => {
       email,
       password,
       role: userRole,
-      assignedCity: null,
+      assignedCity: assignedCity,
       mustChangePassword: userRole === "expert",
       verificationToken: token,
       isVerified: false,
@@ -77,7 +87,7 @@ exports.login = async (req, res) => {
       mustChangePassword: user.mustChangePassword
     }, process.env.JWT_SECRET, { expiresIn: "1d" });
 
-    res.json({ token, user: { id: user._id, name: user.name, firstName: user.firstName, role: user.role, status: user.status, mustChangePassword: user.mustChangePassword } });
+    res.json({ token, user: { id: user._id, name: user.name, firstName: user.firstName, role: user.role, status: user.status, mustChangePassword: user.mustChangePassword, phone: user.phone, assignedCity: user.assignedCity } });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -89,7 +99,7 @@ exports.getMe = async (req, res) => {
   res.json(user);
 };
 
-// CHANGER LE MOT DE PASSE ET COMPLÉTER LE PROFIL (Pour Expert/Admin au premier login)
+// CHANGER LE MOT DE PASSE ET COMPLÉTER LE PROFIL (Pour Expert/Gestionnaire d'Exploitation au premier login)
 exports.changePassword = async (req, res) => {
   try {
     const { newPassword, phone, cin } = req.body;
@@ -173,13 +183,38 @@ exports.resetPassword = async (req, res) => {
 exports.getAgents = async (req, res) => {
   try {
     const agents = await User.find({ role: 'agent' }).select('name firstName email zone status');
-    res.json(agents);
+    
+    // Pour chaque agent, compter le nombre de missions en cours
+    const agentsWithMissions = await Promise.all(agents.map(async (agent) => {
+      const activeMissionsCount = await Report.countDocuments({ 
+        assignedTo: agent._id, 
+        status: 'IN_PROGRESS' 
+      });
+      return {
+        ...agent.toObject(),
+        activeMissionsCount
+      };
+    }));
+
+    res.json(agentsWithMissions);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
 
-// Obtenir les agents en attente (Pour l'admin)
+// Obtenir la liste des experts (Pour le Gestionnaire d'Exploitation)
+exports.getExperts = async (req, res) => {
+  try {
+    const experts = await User.find({ role: 'expert' })
+      .select('name firstName email role status assignedCity createdAt')
+      .sort({ createdAt: -1 });
+    res.json(experts);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Obtenir les agents en attente (Pour le Gestionnaire d'Exploitation)
 exports.getPendingAgents = async (req, res) => {
   try {
     const agents = await User.find({ role: 'agent', status: 'pending' }).select('-password');
@@ -189,7 +224,7 @@ exports.getPendingAgents = async (req, res) => {
   }
 };
 
-// Approuver un agent et lui attribuer sa ville (Pour l'admin)
+// Approuver un agent et lui attribuer sa ville (Pour le Gestionnaire d'Exploitation)
 exports.approveAgent = async (req, res) => {
   try {
     const { id } = req.params;
@@ -226,7 +261,7 @@ exports.approveAgent = async (req, res) => {
   }
 };
 
-// Rejeter un agent (Pour l'admin)
+// Rejeter un agent (Pour le Gestionnaire d'Exploitation)
 exports.rejectAgent = async (req, res) => {
   try {
     const { id } = req.params;

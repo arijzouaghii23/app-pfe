@@ -1,0 +1,8 @@
+train: /content/local_dataset/train/images
+val: /content/local_dataset/valid/images
+nc: 4
+names:
+- pothole
+- crack
+- alligator_crack
+- surface_anomalies
